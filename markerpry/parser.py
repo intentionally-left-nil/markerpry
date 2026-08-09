@@ -53,16 +53,16 @@ def parse_marker(marker: Marker) -> Node:
 
 def _parse_marker(marker: Any) -> Node:
 
-    if isinstance(marker, tuple) or isinstance(marker, list):
-        while len(marker) > 3 and 'and' in marker:
-            operator_index = marker.index('and')
+    if isinstance(marker, (tuple, list)):
+        while len(marker) > 3 and "and" in marker:
+            operator_index = marker.index("and")
             before = marker[: operator_index - 1]
             term = marker[operator_index - 1 : operator_index + 2]
             after = marker[operator_index + 2 :]
             marker = list(before) + [term] + list(after)
 
-        while len(marker) > 3 and 'or' in marker:
-            operator_index = marker.index('or')
+        while len(marker) > 3 and "or" in marker:
+            operator_index = marker.index("or")
             before = marker[: operator_index - 1]
             term = marker[operator_index - 1 : operator_index + 2]
             after = marker[operator_index + 2 :]
@@ -72,7 +72,7 @@ def _parse_marker(marker: Any) -> Node:
             return _parse_marker(marker[0])
         if len(marker) == 3:
             lhs, comparator, rhs = marker
-            if comparator in ('and', 'or'):
+            if comparator in ("and", "or"):
                 return OperatorNode(
                     operator=marker[1],
                     _left=_parse_marker(lhs),
@@ -95,7 +95,7 @@ def _parse_marker(marker: Any) -> Node:
                     or comparator.value == "not in"
                 )
             ):
-                if comparator.value in ('in', 'not in'):
+                if comparator.value in ("in", "not in"):
                     return ExpressionNode(
                         lhs=lhs.value,
                         comparator=cast(Comparator, comparator.value),

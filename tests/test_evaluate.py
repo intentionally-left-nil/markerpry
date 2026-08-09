@@ -1,11 +1,10 @@
 import re
 
 import pytest
-from packaging.markers import Marker
-from packaging.version import Version
-
 from markerpry.node import BooleanNode, Environment, ExpressionNode, Node, OperatorNode
 from markerpry.parser import parse
+from packaging.markers import Marker
+from packaging.version import Version
 
 # Basic string comparison tests
 string_testdata = [
@@ -61,7 +60,7 @@ string_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,expr,env,expected",
+    ("name", "expr", "env", "expected"),
     string_testdata,
     ids=[x[0] for x in string_testdata],
 )
@@ -94,11 +93,13 @@ resolved_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,expr,env,expected",
+    ("name", "expr", "env", "expected"),
     resolved_testdata,
     ids=[x[0] for x in resolved_testdata],
 )
-def test_resolved_attribute_on_evaluate(name: str, expr: ExpressionNode, env: Environment, expected: bool):
+def test_resolved_attribute_on_evaluate(
+    name: str, expr: ExpressionNode, env: Environment, expected: bool
+):
     result = expr.evaluate(env)
     assert result.resolved == expected
 
@@ -163,7 +164,7 @@ version_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,expr,env,expected",
+    ("name", "expr", "env", "expected"),
     version_testdata,
     ids=[x[0] for x in version_testdata],
 )
@@ -190,11 +191,13 @@ multiple_value_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,expr,env,expected",
+    ("name", "expr", "env", "expected"),
     multiple_value_testdata,
     ids=[x[0] for x in multiple_value_testdata],
 )
-def test_multiple_values_evaluate(name: str, expr: ExpressionNode, env: Environment, expected: Node):
+def test_multiple_values_evaluate(
+    name: str, expr: ExpressionNode, env: Environment, expected: Node
+):
     result = expr.evaluate(env)
     assert result == expected
 
@@ -223,7 +226,7 @@ missing_env_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,expr,env,expected",
+    ("name", "expr", "env", "expected"),
     missing_env_testdata,
     ids=[x[0] for x in missing_env_testdata],
 )
@@ -292,7 +295,7 @@ regex_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,expr,env,expected",
+    ("name", "expr", "env", "expected"),
     regex_testdata,
     ids=[x[0] for x in regex_testdata],
 )
@@ -357,7 +360,7 @@ boolean_literal_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,expr,env,expected",
+    ("name", "expr", "env", "expected"),
     boolean_literal_testdata,
     ids=[x[0] for x in boolean_literal_testdata],
 )
@@ -449,7 +452,7 @@ operator_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,expr,env,expected",
+    ("name", "expr", "env", "expected"),
     operator_testdata,
     ids=[x[0] for x in operator_testdata],
 )
@@ -460,7 +463,8 @@ def test_operator_evaluate(name: str, expr: OperatorNode, env: Environment, expe
 
 def test_complex_partial_evaluation():
     """Test a complex tree where only part of it can be evaluated."""
-    # "(python_version >= '3.8' and os_name == 'posix') or (sys_platform == 'linux' and implementation_name == 'cpython')"
+    # "(python_version >= '3.8' and os_name == 'posix') or
+    #  (sys_platform == 'linux' and implementation_name == 'cpython')"
     expr = parse(
         "(python_version >= '3.8' and os_name == 'posix') or "
         "(sys_platform == 'linux' and implementation_name == 'cpython')"
@@ -511,7 +515,7 @@ or_shortcircuit_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,expr,env,expected",
+    ("name", "expr", "env", "expected"),
     or_shortcircuit_testdata,
     ids=[x[0] for x in or_shortcircuit_testdata],
 )
@@ -579,7 +583,7 @@ partial_eval_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,expr,env,expected",
+    ("name", "expr", "env", "expected"),
     partial_eval_testdata,
     ids=[x[0] for x in partial_eval_testdata],
 )
@@ -624,7 +628,7 @@ full_eval_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,expr,env,expected",
+    ("name", "expr", "env", "expected"),
     full_eval_testdata,
     ids=[x[0] for x in full_eval_testdata],
 )
@@ -815,7 +819,7 @@ packaging_comparison_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,marker_str,env,expected",
+    ("name", "marker_str", "env", "expected"),
     packaging_comparison_testdata,
     ids=[x[0] for x in packaging_comparison_testdata],
 )

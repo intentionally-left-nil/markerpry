@@ -1,5 +1,4 @@
 import pytest
-
 from markerpry.node import FALSE, TRUE, BooleanNode, ExpressionNode, OperatorNode
 
 
@@ -66,10 +65,10 @@ def test_boolean_equality():
     assert TRUE == TRUE
     assert BooleanNode(True) == TRUE
     # New tests for bool comparison
-    assert TRUE == True  # type: ignore
-    assert FALSE == False  # type: ignore
-    assert TRUE != False  # type: ignore
-    assert FALSE != True  # type: ignore
+    assert TRUE == True  # noqa: E712
+    assert FALSE == False  # noqa: E712
+    assert TRUE != False  # noqa: E712
+    assert FALSE != True  # noqa: E712
 
 
 def test_boolean_coercion():
@@ -80,31 +79,32 @@ def test_boolean_coercion():
     if TRUE:
         assert True
     else:
-        assert False
+        pytest.fail("TRUE should be truthy")
     if FALSE:
-        assert False
+        pytest.fail("FALSE should be falsy")
     else:
         assert True
     # Test with and/or
-    assert TRUE and True
-    assert not (FALSE and True)
-    assert TRUE or False
-    assert not (FALSE or False)
+    combined_and = TRUE and True
+    assert combined_and
+    combined_and_falsy = FALSE and True
+    assert not combined_and_falsy
+    combined_or = TRUE or False
+    assert combined_or
+    combined_or_falsy = FALSE or False
+    assert not combined_or_falsy
 
 
 def test_resolved_attribute():
     """Test that the resolved attribute is True iff a node is a BooleanNode"""
-    assert BooleanNode(True).resolved == True
-    assert BooleanNode(False).resolved == True
-    ExpressionNode("python_version", ">=", "3.7").resolved == False
-    assert (
-        OperatorNode(
-            "and",
-            ExpressionNode("os_name", "==", "posix"),
-            ExpressionNode("python_version", ">=", "3.7"),
-        ).resolved
-        == False
-    )
+    assert BooleanNode(True).resolved
+    assert BooleanNode(False).resolved
+    assert not ExpressionNode("python_version", ">=", "3.7").resolved
+    assert not OperatorNode(
+        "and",
+        ExpressionNode("os_name", "==", "posix"),
+        ExpressionNode("python_version", ">=", "3.7"),
+    ).resolved
 
 
 def test_non_boolean_node_coercion():
@@ -124,12 +124,10 @@ def test_non_boolean_node_coercion():
 
     # Test in if statement
     with pytest.raises(TypeError, match="Cannot convert ExpressionNode to bool"):
-        if expr:
-            pass
+        _ = 1 if expr else 0
 
     with pytest.raises(TypeError, match="Cannot convert OperatorNode to bool"):
-        if op:
-            pass
+        _ = 1 if op else 0
 
 
 # In/NotIn operator tests
@@ -174,7 +172,7 @@ in_operator_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,expr,key,expected",
+    ("name", "expr", "key", "expected"),
     in_operator_testdata,
     ids=[x[0] for x in in_operator_testdata],
 )
@@ -219,7 +217,7 @@ in_str_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,expr,expected_str",
+    ("name", "expr", "expected_str"),
     in_str_testdata,
     ids=[x[0] for x in in_str_testdata],
 )
@@ -300,7 +298,7 @@ expression_contains_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,expr,key,expected",
+    ("name", "expr", "key", "expected"),
     expression_contains_testdata,
     ids=[x[0] for x in expression_contains_testdata],
 )
