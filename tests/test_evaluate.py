@@ -1,4 +1,5 @@
 import re
+from typing import Literal
 
 import pytest
 from markerpry.node import BooleanNode, Environment, ExpressionNode, Node, OperatorNode
@@ -635,6 +636,101 @@ full_eval_testdata = [
 def test_full_evaluation(name: str, expr: OperatorNode, env: Environment, expected: Node):
     result = expr.evaluate(env)
     assert result == expected
+
+
+# OperatorNode.combine() tests
+combine_testdata = [
+    (
+        "or_left_true",
+        "or",
+        BooleanNode(True),
+        ExpressionNode("os_name", "==", "posix"),
+        BooleanNode(True),
+    ),
+    (
+        "or_left_false",
+        "or",
+        BooleanNode(False),
+        ExpressionNode("os_name", "==", "posix"),
+        ExpressionNode("os_name", "==", "posix"),
+    ),
+    (
+        "or_right_true",
+        "or",
+        ExpressionNode("os_name", "==", "posix"),
+        BooleanNode(True),
+        BooleanNode(True),
+    ),
+    (
+        "or_right_false",
+        "or",
+        ExpressionNode("os_name", "==", "posix"),
+        BooleanNode(False),
+        ExpressionNode("os_name", "==", "posix"),
+    ),
+    (
+        "or_neither_boolean",
+        "or",
+        ExpressionNode("os_name", "==", "posix"),
+        ExpressionNode("python_version", ">=", "3.7"),
+        OperatorNode(
+            "or",
+            ExpressionNode("os_name", "==", "posix"),
+            ExpressionNode("python_version", ">=", "3.7"),
+        ),
+    ),
+    (
+        "and_left_true",
+        "and",
+        BooleanNode(True),
+        ExpressionNode("os_name", "==", "posix"),
+        ExpressionNode("os_name", "==", "posix"),
+    ),
+    (
+        "and_left_false",
+        "and",
+        BooleanNode(False),
+        ExpressionNode("os_name", "==", "posix"),
+        BooleanNode(False),
+    ),
+    (
+        "and_right_true",
+        "and",
+        ExpressionNode("os_name", "==", "posix"),
+        BooleanNode(True),
+        ExpressionNode("os_name", "==", "posix"),
+    ),
+    (
+        "and_right_false",
+        "and",
+        ExpressionNode("os_name", "==", "posix"),
+        BooleanNode(False),
+        BooleanNode(False),
+    ),
+    (
+        "and_neither_boolean",
+        "and",
+        ExpressionNode("os_name", "==", "posix"),
+        ExpressionNode("python_version", ">=", "3.7"),
+        OperatorNode(
+            "and",
+            ExpressionNode("os_name", "==", "posix"),
+            ExpressionNode("python_version", ">=", "3.7"),
+        ),
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "operator", "left", "right", "expected"),
+    combine_testdata,
+    ids=[x[0] for x in combine_testdata],
+)
+def test_combine(
+    name: str, operator: Literal["and", "or"], left: Node, right: Node, expected: Node
+):
+    """Test that combine() applies the and/or short-circuit simplification directly."""
+    assert OperatorNode.combine(operator, left, right) == expected
 
 
 # Comparison tests with packaging.Marker
