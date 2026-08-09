@@ -39,13 +39,14 @@ tree = parse('python_version >= "3.7" and (os_name == "posix" or platform_system
 The parse method returns a tree where each node is one of:
 
 - `BooleanNode`: Represents True/False values
-- `ExpressionNode`: Represents comparisons like `python_version >= "3.7"`
+- `CompareNode`: Represents comparisons like `python_version >= "3.7"` (`==`, `===`, `!=`, `<`, `<=`, `>`, `>=`, `~=`)
+- `ContainsNode`: Represents membership tests like `"3.7" in python_version` or `python_version in "3.7"`
 - `OperatorNode`: Represents logical operations (`and`/`or`) between nodes
 
 ### Tree Navigation
 
 The tree can be navigated using the `left` and `right` properties of nodes. These properties
-return `None` for leaf nodes (BooleanNode and ExpressionNode):
+return `None` for leaf nodes (BooleanNode, CompareNode, and ContainsNode):
 
 ```python
 # For operator nodes (and/or), access child nodes

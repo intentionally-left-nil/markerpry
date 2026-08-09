@@ -1,22 +1,22 @@
 import pytest
-from markerpry.node import ExpressionNode, Node, OperatorNode
+from markerpry.node import CompareNode, ContainsNode, Node, OperatorNode
 from markerpry.parser import parse, parse_marker
 from packaging.markers import Marker
 
 # Basic comparison tests
 basic_markers = [
-    ("os_name == 'nt'", ExpressionNode(lhs="os_name", comparator="==", rhs="nt")),
+    ("os_name == 'nt'", CompareNode(key="os_name", comparator="==", literal="nt")),
     (
         "sys_platform == 'win32'",
-        ExpressionNode(lhs="sys_platform", comparator="==", rhs="win32"),
+        CompareNode(key="sys_platform", comparator="==", literal="win32"),
     ),
     (
         "platform_machine == 'x86_64'",
-        ExpressionNode(lhs="platform_machine", comparator="==", rhs="x86_64"),
+        CompareNode(key="platform_machine", comparator="==", literal="x86_64"),
     ),
     (
         "platform_python_implementation == 'CPython'",
-        ExpressionNode(lhs="platform_python_implementation", comparator="==", rhs="CPython"),
+        CompareNode(key="platform_python_implementation", comparator="==", literal="CPython"),
     ),
 ]
 
@@ -33,15 +33,15 @@ def test_basic_markers(marker_str: str, expected):
 version_markers = [
     (
         "python_version >= '3.8'",
-        ExpressionNode(lhs="python_version", comparator=">=", rhs="3.8"),
+        CompareNode(key="python_version", comparator=">=", literal="3.8"),
     ),
     (
         "python_full_version < '3.9.7'",
-        ExpressionNode(lhs="python_full_version", comparator="<", rhs="3.9.7"),
+        CompareNode(key="python_full_version", comparator="<", literal="3.9.7"),
     ),
     (
         "implementation_version == '3.8.10'",
-        ExpressionNode(lhs="implementation_version", comparator="==", rhs="3.8.10"),
+        CompareNode(key="implementation_version", comparator="==", literal="3.8.10"),
     ),
 ]
 
@@ -60,16 +60,16 @@ boolean_markers = [
         "python_version >= '3.8' and os_name == 'posix'",
         OperatorNode(
             operator="and",
-            _left=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.8"),
-            _right=ExpressionNode(lhs="os_name", comparator="==", rhs="posix"),
+            _left=CompareNode(key="python_version", comparator=">=", literal="3.8"),
+            _right=CompareNode(key="os_name", comparator="==", literal="posix"),
         ),
     ),
     (
         "os_name == 'nt' or os_name == 'posix'",
         OperatorNode(
             operator="or",
-            _left=ExpressionNode(lhs="os_name", comparator="==", rhs="nt"),
-            _right=ExpressionNode(lhs="os_name", comparator="==", rhs="posix"),
+            _left=CompareNode(key="os_name", comparator="==", literal="nt"),
+            _right=CompareNode(key="os_name", comparator="==", literal="posix"),
         ),
     ),
 ]
@@ -89,11 +89,11 @@ nested_and_markers = [
         "python_version >= '3.8' and (os_name == 'posix' and platform_machine == 'x86_64')",
         OperatorNode(
             operator="and",
-            _left=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.8"),
+            _left=CompareNode(key="python_version", comparator=">=", literal="3.8"),
             _right=OperatorNode(
                 operator="and",
-                _left=ExpressionNode(lhs="os_name", comparator="==", rhs="posix"),
-                _right=ExpressionNode(lhs="platform_machine", comparator="==", rhs="x86_64"),
+                _left=CompareNode(key="os_name", comparator="==", literal="posix"),
+                _right=CompareNode(key="platform_machine", comparator="==", literal="x86_64"),
             ),
         ),
     ),
@@ -103,10 +103,10 @@ nested_and_markers = [
             operator="and",
             _left=OperatorNode(
                 operator="and",
-                _left=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.8"),
-                _right=ExpressionNode(lhs="os_name", comparator="==", rhs="posix"),
+                _left=CompareNode(key="python_version", comparator=">=", literal="3.8"),
+                _right=CompareNode(key="os_name", comparator="==", literal="posix"),
             ),
-            _right=ExpressionNode(lhs="platform_machine", comparator="==", rhs="x86_64"),
+            _right=CompareNode(key="platform_machine", comparator="==", literal="x86_64"),
         ),
     ),
 ]
@@ -129,14 +129,14 @@ complex_and_markers = [
             operator="and",
             _left=OperatorNode(
                 operator="and",
-                _left=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.8"),
+                _left=CompareNode(key="python_version", comparator=">=", literal="3.8"),
                 _right=OperatorNode(
                     operator="and",
-                    _left=ExpressionNode(lhs="os_name", comparator="==", rhs="posix"),
-                    _right=ExpressionNode(lhs="platform_machine", comparator="==", rhs="x86_64"),
+                    _left=CompareNode(key="os_name", comparator="==", literal="posix"),
+                    _right=CompareNode(key="platform_machine", comparator="==", literal="x86_64"),
                 ),
             ),
-            _right=ExpressionNode(lhs="python_version", comparator="<", rhs="4.0"),
+            _right=CompareNode(key="python_version", comparator="<", literal="4.0"),
         ),
     ),
     (
@@ -146,13 +146,13 @@ complex_and_markers = [
             operator="and",
             _left=OperatorNode(
                 operator="and",
-                _left=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.8"),
-                _right=ExpressionNode(lhs="os_name", comparator="==", rhs="posix"),
+                _left=CompareNode(key="python_version", comparator=">=", literal="3.8"),
+                _right=CompareNode(key="os_name", comparator="==", literal="posix"),
             ),
             _right=OperatorNode(
                 operator="and",
-                _left=ExpressionNode(lhs="platform_machine", comparator="==", rhs="x86_64"),
-                _right=ExpressionNode(lhs="python_version", comparator="<", rhs="4.0"),
+                _left=CompareNode(key="platform_machine", comparator="==", literal="x86_64"),
+                _right=CompareNode(key="python_version", comparator="<", literal="4.0"),
             ),
         ),
     ),
@@ -200,11 +200,11 @@ mixed_op_markers = [
         "os_name == 'nt' or python_version >= '3.8' and platform_machine == 'x86_64'",
         OperatorNode(
             operator="or",
-            _left=ExpressionNode(lhs="os_name", comparator="==", rhs="nt"),
+            _left=CompareNode(key="os_name", comparator="==", literal="nt"),
             _right=OperatorNode(
                 operator="and",
-                _left=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.8"),
-                _right=ExpressionNode(lhs="platform_machine", comparator="==", rhs="x86_64"),
+                _left=CompareNode(key="python_version", comparator=">=", literal="3.8"),
+                _right=CompareNode(key="platform_machine", comparator="==", literal="x86_64"),
             ),
         ),
     ),
@@ -214,10 +214,10 @@ mixed_op_markers = [
             operator="and",
             _left=OperatorNode(
                 operator="or",
-                _left=ExpressionNode(lhs="os_name", comparator="==", rhs="nt"),
-                _right=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.8"),
+                _left=CompareNode(key="os_name", comparator="==", literal="nt"),
+                _right=CompareNode(key="python_version", comparator=">=", literal="3.8"),
             ),
-            _right=ExpressionNode(lhs="platform_machine", comparator="==", rhs="x86_64"),
+            _right=CompareNode(key="platform_machine", comparator="==", literal="x86_64"),
         ),
     ),
     (
@@ -226,10 +226,10 @@ mixed_op_markers = [
             operator="or",
             _left=OperatorNode(
                 operator="and",
-                _left=ExpressionNode(lhs="os_name", comparator="==", rhs="nt"),
-                _right=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.8"),
+                _left=CompareNode(key="os_name", comparator="==", literal="nt"),
+                _right=CompareNode(key="python_version", comparator=">=", literal="3.8"),
             ),
-            _right=ExpressionNode(lhs="platform_machine", comparator="==", rhs="x86_64"),
+            _right=CompareNode(key="platform_machine", comparator="==", literal="x86_64"),
         ),
     ),
     (
@@ -238,10 +238,10 @@ mixed_op_markers = [
             operator="or",
             _left=OperatorNode(
                 operator="or",
-                _left=ExpressionNode(lhs="os_name", comparator="==", rhs="nt"),
-                _right=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.8"),
+                _left=CompareNode(key="os_name", comparator="==", literal="nt"),
+                _right=CompareNode(key="python_version", comparator=">=", literal="3.8"),
             ),
-            _right=ExpressionNode(lhs="platform_machine", comparator="==", rhs="x86_64"),
+            _right=CompareNode(key="platform_machine", comparator="==", literal="x86_64"),
         ),
     ),
 ]
@@ -264,10 +264,10 @@ precedence_testdata = [
             operator="and",
             _left=OperatorNode(
                 operator="and",
-                _left=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.7"),
-                _right=ExpressionNode(lhs="os_name", comparator="==", rhs="posix"),
+                _left=CompareNode(key="python_version", comparator=">=", literal="3.7"),
+                _right=CompareNode(key="os_name", comparator="==", literal="posix"),
             ),
-            _right=ExpressionNode(lhs="implementation_name", comparator="==", rhs="cpython"),
+            _right=CompareNode(key="implementation_name", comparator="==", literal="cpython"),
         ),
     ),
     (
@@ -277,10 +277,10 @@ precedence_testdata = [
             operator="or",
             _left=OperatorNode(
                 operator="or",
-                _left=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.7"),
-                _right=ExpressionNode(lhs="os_name", comparator="==", rhs="posix"),
+                _left=CompareNode(key="python_version", comparator=">=", literal="3.7"),
+                _right=CompareNode(key="os_name", comparator="==", literal="posix"),
             ),
-            _right=ExpressionNode(lhs="implementation_name", comparator="==", rhs="cpython"),
+            _right=CompareNode(key="implementation_name", comparator="==", literal="cpython"),
         ),
     ),
     (
@@ -288,11 +288,11 @@ precedence_testdata = [
         "python_version >= '3.7' or os_name == 'posix' and implementation_name == 'cpython'",
         OperatorNode(
             operator="or",
-            _left=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.7"),
+            _left=CompareNode(key="python_version", comparator=">=", literal="3.7"),
             _right=OperatorNode(
                 operator="and",
-                _left=ExpressionNode(lhs="os_name", comparator="==", rhs="posix"),
-                _right=ExpressionNode(lhs="implementation_name", comparator="==", rhs="cpython"),
+                _left=CompareNode(key="os_name", comparator="==", literal="posix"),
+                _right=CompareNode(key="implementation_name", comparator="==", literal="cpython"),
             ),
         ),
     ),
@@ -304,16 +304,16 @@ precedence_testdata = [
             operator="or",
             _left=OperatorNode(
                 operator="or",
-                _left=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.7"),
+                _left=CompareNode(key="python_version", comparator=">=", literal="3.7"),
                 _right=OperatorNode(
                     operator="and",
-                    _left=ExpressionNode(lhs="os_name", comparator="==", rhs="posix"),
-                    _right=ExpressionNode(
-                        lhs="implementation_name", comparator="==", rhs="cpython"
+                    _left=CompareNode(key="os_name", comparator="==", literal="posix"),
+                    _right=CompareNode(
+                        key="implementation_name", comparator="==", literal="cpython"
                     ),
                 ),
             ),
-            _right=ExpressionNode(lhs="sys_platform", comparator="==", rhs="linux"),
+            _right=CompareNode(key="sys_platform", comparator="==", literal="linux"),
         ),
     ),
     (
@@ -324,13 +324,13 @@ precedence_testdata = [
             operator="or",
             _left=OperatorNode(
                 operator="and",
-                _left=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.7"),
-                _right=ExpressionNode(lhs="os_name", comparator="==", rhs="posix"),
+                _left=CompareNode(key="python_version", comparator=">=", literal="3.7"),
+                _right=CompareNode(key="os_name", comparator="==", literal="posix"),
             ),
             _right=OperatorNode(
                 operator="and",
-                _left=ExpressionNode(lhs="implementation_name", comparator="==", rhs="cpython"),
-                _right=ExpressionNode(lhs="sys_platform", comparator="==", rhs="linux"),
+                _left=CompareNode(key="implementation_name", comparator="==", literal="cpython"),
+                _right=CompareNode(key="sys_platform", comparator="==", literal="linux"),
             ),
         ),
     ),
@@ -342,13 +342,13 @@ precedence_testdata = [
             operator="or",
             _left=OperatorNode(
                 operator="and",
-                _left=ExpressionNode(lhs="python_version", comparator=">=", rhs="3.7"),
-                _right=ExpressionNode(lhs="os_name", comparator="==", rhs="posix"),
+                _left=CompareNode(key="python_version", comparator=">=", literal="3.7"),
+                _right=CompareNode(key="os_name", comparator="==", literal="posix"),
             ),
             _right=OperatorNode(
                 operator="and",
-                _left=ExpressionNode(lhs="implementation_name", comparator="==", rhs="cpython"),
-                _right=ExpressionNode(lhs="sys_platform", comparator="==", rhs="linux"),
+                _left=CompareNode(key="implementation_name", comparator="==", literal="cpython"),
+                _right=CompareNode(key="sys_platform", comparator="==", literal="linux"),
             ),
         ),
     ),
@@ -409,7 +409,7 @@ def test_real_world_markers_roundtrip(name: str, marker_str: str):
 def test_parse_marker():
     marker = Marker("os_name == 'nt'")
     result = parse_marker(marker)
-    assert result == ExpressionNode(lhs="os_name", comparator="==", rhs="nt")
+    assert result == CompareNode(key="os_name", comparator="==", literal="nt")
 
 
 # Reversed comparator tests
@@ -417,42 +417,42 @@ reversed_comparator_testdata = [
     (
         "reversed_greater_than",
         '"3.0" < python_version',
-        ExpressionNode(lhs="python_version", comparator=">", rhs="3.0"),
+        CompareNode(key="python_version", comparator=">", literal="3.0"),
     ),
     (
         "reversed_less_than",
         '"3.0" > python_version',
-        ExpressionNode(lhs="python_version", comparator="<", rhs="3.0"),
+        CompareNode(key="python_version", comparator="<", literal="3.0"),
     ),
     (
         "reversed_greater_equal",
         '"3.0" <= python_version',
-        ExpressionNode(lhs="python_version", comparator=">=", rhs="3.0"),
+        CompareNode(key="python_version", comparator=">=", literal="3.0"),
     ),
     (
         "reversed_less_equal",
         '"3.0" >= python_version',
-        ExpressionNode(lhs="python_version", comparator="<=", rhs="3.0"),
+        CompareNode(key="python_version", comparator="<=", literal="3.0"),
     ),
     (
         "reversed_equal",
         '"3.0" == python_version',
-        ExpressionNode(lhs="python_version", comparator="==", rhs="3.0"),
+        CompareNode(key="python_version", comparator="==", literal="3.0"),
     ),
     (
         "reversed_not_equal",
         '"3.0" != python_version',
-        ExpressionNode(lhs="python_version", comparator="!=", rhs="3.0"),
+        CompareNode(key="python_version", comparator="!=", literal="3.0"),
     ),
     (
         "reversed_triple_equal",
         '"3.0" === python_version',
-        ExpressionNode(lhs="python_version", comparator="===", rhs="3.0"),
+        CompareNode(key="python_version", comparator="===", literal="3.0"),
     ),
     (
         "reversed_tilde_equal",
         '"3.0" ~= python_version',
-        ExpressionNode(lhs="python_version", comparator="~=", rhs="3.0"),
+        CompareNode(key="python_version", comparator="~=", literal="3.0"),
     ),
 ]
 
@@ -473,32 +473,32 @@ operand_order_markers = [
     (
         "normal_comparison",
         'python_version >= "3.7"',
-        ExpressionNode(lhs="python_version", comparator=">=", rhs="3.7"),
+        CompareNode(key="python_version", comparator=">=", literal="3.7"),
     ),
     (
         "reversed_comparison",
         '"3.7" <= python_version',
-        ExpressionNode(lhs="python_version", comparator=">=", rhs="3.7"),
+        CompareNode(key="python_version", comparator=">=", literal="3.7"),
     ),
     (
         "normal_in",
         '"win32" in sys_platform',
-        ExpressionNode(lhs="win32", comparator="in", rhs="sys_platform"),
+        ContainsNode(key="sys_platform", literal="win32", key_on_left=False),
     ),
     (
         "reversed_in",
         'sys_platform in "win32"',
-        ExpressionNode(lhs="sys_platform", comparator="in", rhs="win32", inverted=True),
+        ContainsNode(key="sys_platform", literal="win32", key_on_left=True),
     ),
     (
         "normal_not_in",
         '"win32" not in sys_platform',
-        ExpressionNode(lhs="win32", comparator="not in", rhs="sys_platform"),
+        ContainsNode(key="sys_platform", literal="win32", key_on_left=False, negate=True),
     ),
     (
         "reversed_not_in",
         'sys_platform not in "win32"',
-        ExpressionNode(lhs="sys_platform", comparator="not in", rhs="win32", inverted=True),
+        ContainsNode(key="sys_platform", literal="win32", key_on_left=True, negate=True),
     ),
 ]
 

@@ -5,9 +5,9 @@ from typing import Any, cast
 from packaging._parser import Op, Value, Variable
 from packaging.markers import Marker
 
-from markerpry.node import Comparator, ExpressionNode, Node, OperatorNode
+from markerpry.node import CompareNode, ComparisonOperator, ContainsNode, Node, OperatorNode
 
-REVERSE_MAP: Mapping[Comparator, Comparator] = MappingProxyType(
+REVERSE_MAP: Mapping[ComparisonOperator, ComparisonOperator] = MappingProxyType(
     {
         "==": "==",
         "===": "===",
@@ -96,24 +96,28 @@ def _parse_marker(marker: Any) -> Node:
                 )
             ):
                 if comparator.value in ("in", "not in"):
-                    return ExpressionNode(
-                        lhs=lhs.value,
-                        comparator=cast(Comparator, comparator.value),
-                        rhs=rhs.value,
-                        inverted=isinstance(lhs, Variable),
+                    negate = comparator.value == "not in"
+                    if isinstance(lhs, Variable):
+                        # The key is on the left, e.g. python_version in "2.7"
+                        return ContainsNode(
+                            key=lhs.value, literal=rhs.value, key_on_left=True, negate=negate
+                        )
+                    # The key is on the right, e.g. "windows" in sys_platform
+                    return ContainsNode(
+                        key=rhs.value, literal=lhs.value, key_on_left=False, negate=negate
                     )
                 if isinstance(lhs, Value):
                     # The marker is reversed, e.g. "3.0" < python_version
                     # Flip it around to simplify the logic
-                    return ExpressionNode(
-                        lhs=rhs.value,
-                        comparator=REVERSE_MAP[cast(Comparator, comparator.value)],
-                        rhs=lhs.value,
+                    return CompareNode(
+                        key=rhs.value,
+                        comparator=REVERSE_MAP[cast(ComparisonOperator, comparator.value)],
+                        literal=lhs.value,
                     )
-                return ExpressionNode(
-                    lhs=lhs.value,
-                    comparator=cast(Comparator, comparator.value),
-                    rhs=rhs.value,
+                return CompareNode(
+                    key=lhs.value,
+                    comparator=cast(ComparisonOperator, comparator.value),
+                    literal=rhs.value,
                 )
 
     raise NotImplementedError(f"Unknown marker {type(marker)}: {marker}")

@@ -7,8 +7,10 @@ from .node import (
     TRUE,
     BooleanNode,
     Comparator,
+    CompareNode,
+    ComparisonOperator,
+    ContainsNode,
     Environment,
-    ExpressionNode,
     Node,
     OperatorNode,
 )
@@ -17,12 +19,14 @@ from .parser import parse, parse_marker
 __all__ = [
     "Node",
     "BooleanNode",
-    "ExpressionNode",
+    "CompareNode",
+    "ContainsNode",
     "OperatorNode",
     "parse",
     "parse_marker",
     "Environment",
     "Comparator",
+    "ComparisonOperator",
     "TRUE",
     "FALSE",
 ]

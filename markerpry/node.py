@@ -1,5 +1,6 @@
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal, assert_never, override
 
@@ -8,6 +9,7 @@ from packaging.version import Version
 
 Environment = dict[str, list[str | Version | re.Pattern[str] | bool]]
 Comparator = Literal["==", "===", "!=", ">", "<", ">=", "<=", "in", "not in", "~="]
+ComparisonOperator = Literal["==", "===", "!=", ">", "<", ">=", "<=", "~="]
 
 
 class Node(ABC):
@@ -88,97 +90,127 @@ TRUE = BooleanNode(True)
 FALSE = BooleanNode(False)
 
 
+def _evaluate_values(
+    values: list[str | Version | re.Pattern[str] | bool],
+    evaluate_string: Callable[[str], "bool | None"],
+    evaluate_pattern: Callable[[re.Pattern[str]], "bool | None"],
+    evaluate_version: Callable[[Version], "bool | None"],
+) -> "bool | None":
+    result: bool | None = None
+    for value in values:
+        if isinstance(value, str):
+            eval = evaluate_string(value)
+        elif isinstance(value, re.Pattern):
+            eval = evaluate_pattern(value)
+        elif isinstance(value, Version):
+            eval = evaluate_version(value)
+        elif isinstance(value, bool):
+            return value
+        else:
+            assert_never(value)
+        result = result if eval is None else result or eval
+    return result
+
+
 @dataclass(frozen=True)
-class ExpressionNode(Node):
+class CompareNode(Node):
     """A node representing a comparison expression (e.g., python_version > '3.7')."""
 
-    lhs: str
-    comparator: Comparator
-    rhs: str
-    inverted: bool = False
+    key: str
+    comparator: ComparisonOperator
+    literal: str
 
     @override
     def __str__(self) -> str:
-        rhs_is_value = not self.inverted
-        if self.comparator in ("in", "not in"):
-            rhs_is_value = not rhs_is_value
-
-        lhs = str(self.lhs)
-        rhs = str(self.rhs)
-        if rhs_is_value:
-            rhs = f'"{rhs}"'
-        else:
-            lhs = f'"{lhs}"'
-        return f"{lhs} {self.comparator} {rhs}"
+        return f'{self.key} {self.comparator} "{self.literal}"'
 
     @override
     def __contains__(self, key: str) -> bool:
-        return self._key() == key
+        return self.key == key
 
     @override
     def evaluate(self, environment: Environment) -> "Node":
-        if self._key() not in environment:
+        if self.key not in environment:
             return self
-        values = environment[self._key()]
-        result: bool | None = None
-        for value in values:
-            if isinstance(value, str):
-                eval = self._evaluate_string(value)
-                result = result if eval is None else result or eval
-            elif isinstance(value, re.Pattern):
-                eval = self._evaluate_pattern(value)
-                result = result if eval is None else result or eval
-            elif isinstance(value, Version):
-                eval = self._evaluate_version(value)
-                result = result if eval is None else result or eval
-            elif isinstance(value, bool):
-                result = value
-                break
-            else:
-                assert_never(value)
+        result = _evaluate_values(
+            environment[self.key],
+            self._evaluate_string,
+            self._evaluate_pattern,
+            self._evaluate_version,
+        )
         return self if result is None else BooleanNode(result)
 
     def _evaluate_string(self, value: str) -> "bool | None":
         if self.comparator == "==" or self.comparator == "===":
-            return value == self._value()
+            return value == self.literal
         elif self.comparator == "!=":
-            return value != self._value()
-        elif self.comparator == "in":
-            return value in self._value() if self.inverted else self._value() in value
-        elif self.comparator == "not in":
-            return value not in self._value() if self.inverted else self._value() not in value
+            return value != self.literal
         else:
             return None
 
     def _evaluate_pattern(self, value: re.Pattern[str]) -> "bool | None":
         if self.comparator == "==" or self.comparator == "===":
-            return value.match(self._value()) is not None
+            return value.match(self.literal) is not None
         elif self.comparator == "!=":
-            return not value.match(self._value())
+            return not value.match(self.literal)
         else:
             return None
 
     def _evaluate_version(self, value: Version) -> "bool | None":
-        if self.comparator in ("in", "not in"):
-            # From: https://peps.python.org/pep-0508/#environment-markers
-            # The <marker_op> operators that are not in <version_cmp> perform
-            # the same as they do for strings in Python
-            return self._evaluate_string(str(value))
         try:
-            specifier = SpecifierSet(f"{self.comparator} {self._value()}")
+            specifier = SpecifierSet(f"{self.comparator} {self.literal}")
         except InvalidSpecifier:
             return None
         return specifier.contains(value)
 
-    def _key(self) -> str:
-        if self.comparator in ("in", "not in"):
-            return self.lhs if self.inverted else self.rhs
-        return self.rhs if self.inverted else self.lhs
 
-    def _value(self) -> str:
-        if self.comparator in ("in", "not in"):
-            return self.rhs if self.inverted else self.lhs
-        return self.lhs if self.inverted else self.rhs
+@dataclass(frozen=True)
+class ContainsNode(Node):
+    """A node representing a membership test (e.g., '3.7' in python_version)."""
+
+    key: str
+    literal: str
+    key_on_left: bool
+    negate: bool = False
+
+    @override
+    def __str__(self) -> str:
+        comparator = "not in" if self.negate else "in"
+        if self.key_on_left:
+            return f'{self.key} {comparator} "{self.literal}"'
+        return f'"{self.literal}" {comparator} {self.key}'
+
+    @override
+    def __contains__(self, key: str) -> bool:
+        return self.key == key
+
+    @override
+    def evaluate(self, environment: Environment) -> "Node":
+        if self.key not in environment:
+            return self
+        result = _evaluate_values(
+            environment[self.key],
+            self._evaluate_string,
+            self._evaluate_pattern,
+            self._evaluate_version,
+        )
+        return self if result is None else BooleanNode(result)
+
+    def _evaluate_string(self, value: str) -> bool:
+        # key_on_left: key in "literal" (is the key's value a substring of the literal)
+        # not key_on_left: "literal" in key (is the literal a substring of the key's value)
+        is_member = value in self.literal if self.key_on_left else self.literal in value
+        return not is_member if self.negate else is_member
+
+    def _evaluate_pattern(self, value: re.Pattern[str]) -> "bool | None":
+        # Patterns don't support membership tests - only == and != are decidable for them.
+        return None
+
+    def _evaluate_version(self, value: Version) -> "bool | None":
+        # From: https://peps.python.org/pep-0508/#environment-markers
+        # The <marker_op> operators that are not in <version_cmp> perform
+        # the same as they do for strings in Python
+        return self._evaluate_string(str(value))
 
 
 @dataclass(frozen=True)
