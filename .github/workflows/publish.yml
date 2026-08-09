@@ -12,18 +12,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
         with:
           python-version: "3.12"
-      - name: cache-pip
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ hashFiles('pyproject.toml') }}
-      - name: Install hatch
-        run: pipx install hatch
+          enable-cache: true
       - name: Build the release
-        run: hatch build
+        run: uv build
       - uses: actions/upload-artifact@v4
         with:
           name: dist

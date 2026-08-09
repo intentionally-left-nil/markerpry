@@ -175,3 +175,24 @@ If any parts of the expression can't be evaluated (due to missing environment va
 ## License
 
 `markerpry` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
+
+## Development
+
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management and packaging.
+
+```console
+# Install dependencies (including dev tools) into a local virtualenv
+uv sync
+
+# Run the test suite
+uv run pytest
+
+# Run linters
+uv run isort --check --diff .
+uv run black --check --diff .
+uv run mypy --check-untyped-defs markerpry tests
+
+# Build the package
+uv build
+```
+
