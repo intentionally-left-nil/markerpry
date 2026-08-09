@@ -2,13 +2,22 @@
 #
 # SPDX-License-Identifier: MIT
 
+from .constraint import (
+    Comparator,
+    ComparisonOperator,
+    Constraint,
+    ConstraintLike,
+    ExactConstraint,
+    FlagConstraint,
+    PatternConstraint,
+    StringConstraint,
+    coerce,
+)
 from .node import (
     FALSE,
     TRUE,
     BooleanNode,
-    Comparator,
     CompareNode,
-    ComparisonOperator,
     ContainsNode,
     Environment,
     Node,
@@ -27,6 +36,13 @@ __all__ = [
     "Environment",
     "Comparator",
     "ComparisonOperator",
+    "Constraint",
+    "ConstraintLike",
+    "StringConstraint",
+    "PatternConstraint",
+    "ExactConstraint",
+    "FlagConstraint",
+    "coerce",
     "TRUE",
     "FALSE",
 ]

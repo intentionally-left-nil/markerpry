@@ -120,15 +120,18 @@ The evaluation process:
 Each environment key can contain a list of different types of values:
 
 - `Version` objects: Used for version comparisons (`python_version`, etc.)
-  - Work with all comparators (`==`, `!=`, `<`, `<=`, `>`, `>=`)
+  - Work with all comparators (`==`, `===`, `!=`, `<`, `<=`, `>`, `>=`, `~=`)
   - Version strings are parsed using `packaging.specifiers.SpecifierSet`
-- `str` values: Used for exact string matching
-  - Only work with equality comparators (`==`, `!=`)
-  - Other comparators (`<`, `<=`, `>`, `>=`) will leave the expression unevaluated
+- `str` values: Used for exact string matching and substring tests
+  - `==`/`===`/`!=` do exact string equality; `in`/`not in` do substring tests
+  - Other comparators (`<`, `<=`, `>`, `>=`, `~=`) will leave the expression unevaluated
 - `re.Pattern` objects: Used for pattern matching
-  - Only work with equality comparators (`==`, `!=`)
-  - `==` checks if the pattern matches
+  - Only work with equality comparators (`==`, `===`, `!=`)
+  - `==`/`===` checks if the pattern matches
   - `!=` checks if the pattern doesn't match
+- `bool` values: Unconditionally decide every comparator
+  - `True` means "yes"; `False` means "no"
+
 
 #### Multiple Values
 
@@ -194,4 +197,3 @@ uv run mypy --check-untyped-defs markerpry tests
 # Build the package
 uv build
 ```
-

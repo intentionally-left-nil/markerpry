@@ -2,6 +2,12 @@ import re
 from typing import Literal
 
 import pytest
+from markerpry.constraint import (
+    ExactConstraint,
+    FlagConstraint,
+    PatternConstraint,
+    StringConstraint,
+)
 from markerpry.node import (
     BooleanNode,
     CompareNode,
@@ -250,6 +256,54 @@ multiple_value_testdata = [
     ids=[x[0] for x in multiple_value_testdata],
 )
 def test_multiple_values_evaluate(name: str, expr: CompareNode, env: Environment, expected: Node):
+    result = expr.evaluate(env)
+    assert result == expected
+
+
+# Pre-coerced Constraint tests - an environment may hold already-wrapped Constraint
+# instances directly; evaluate() must accept those identically to bare values.
+pre_coerced_environment_testdata = [
+    (
+        "compare_node_string",
+        CompareNode(key="os_name", comparator="==", literal="posix"),
+        {"os_name": [StringConstraint("posix")]},
+        BooleanNode(True),
+    ),
+    (
+        "compare_node_pattern",
+        CompareNode(key="sys_platform", comparator="==", literal="linux2"),
+        {"sys_platform": [PatternConstraint(re.compile("linux.*"))]},
+        BooleanNode(True),
+    ),
+    (
+        "compare_node_exact",
+        CompareNode(key="python_version", comparator=">=", literal="3.7"),
+        {"python_version": [ExactConstraint(Version("3.8"))]},
+        BooleanNode(True),
+    ),
+    (
+        "compare_node_flag",
+        CompareNode(key="python_implementation", comparator="==", literal="CPython"),
+        {"python_implementation": [FlagConstraint(True)]},
+        BooleanNode(True),
+    ),
+    (
+        "contains_node_string",
+        ContainsNode(key="sys_platform", literal="linux", key_on_left=False),
+        {"sys_platform": [StringConstraint("linux2")]},
+        BooleanNode(True),
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "expr", "env", "expected"),
+    pre_coerced_environment_testdata,
+    ids=[x[0] for x in pre_coerced_environment_testdata],
+)
+def test_evaluate_with_pre_coerced_environment(
+    name: str, expr: Node, env: Environment, expected: Node
+):
     result = expr.evaluate(env)
     assert result == expected
 
