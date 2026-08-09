@@ -7,6 +7,7 @@ from markerpry.constraint import (
     ExactConstraint,
     FlagConstraint,
     PatternConstraint,
+    RangeConstraint,
     StringConstraint,
     coerce,
 )
@@ -159,6 +160,291 @@ def test_flag_constraint_evaluate(
     name: str, constraint: FlagConstraint, comparator: Comparator, literal: str, expected: bool
 ):
     assert constraint.evaluate(comparator, literal) == expected
+
+
+# RangeConstraint tests
+#
+# A RangeConstraint's correctness is entirely about comparator/boundary
+# interactions, so rather than a handful of representative cases, each table
+# below fixes one constraint and sweeps every literal position around it --
+# below, at, inside, and above its bounds -- the way you'd audit interval
+# arithmetic by hand.
+
+# -- A single point (min == max, both bounds closed) is a plain version in
+# disguise: every comparator must be decidable, since there's no "inside"
+# position left to be ambiguous about.
+_POINT = RangeConstraint(Version("3.8"), Version("3.8"), include_min=True, include_max=True)
+
+range_point_equality_testdata = [
+    # literal == "3.8" exactly, just spelled with an explicit patch of zero
+    ("point_eq_zero_padded_spelling", _POINT, "==", "3.8.0", True),
+    ("point_ne_zero_padded_spelling", _POINT, "!=", "3.8.0", False),
+    ("point_triple_eq_zero_padded_spelling", _POINT, "===", "3.8.0", True),
+    # below the point
+    ("point_eq_lower_patch", _POINT, "==", "3.7.9", False),
+    ("point_ne_lower_patch", _POINT, "!=", "3.7.9", True),
+    ("point_eq_prerelease_of_point", _POINT, "==", "3.8.0b1", False),
+    ("point_ne_prerelease_of_point", _POINT, "!=", "3.8.0b1", True),
+    ("point_eq_dev_of_point", _POINT, "==", "3.8.0.dev1", False),
+    ("point_ne_dev_of_point", _POINT, "!=", "3.8.0.dev1", True),
+    # above the point
+    ("point_eq_higher_minor", _POINT, "==", "3.9", False),
+    ("point_ne_higher_minor", _POINT, "!=", "3.9", True),
+    ("point_eq_higher_patch", _POINT, "==", "3.8.1", False),
+    ("point_ne_higher_patch", _POINT, "!=", "3.8.1", True),
+    ("point_eq_post_of_point", _POINT, "==", "3.8.0.post1", False),
+    ("point_ne_post_of_point", _POINT, "!=", "3.8.0.post1", True),
+    ("point_triple_eq_higher_minor", _POINT, "===", "3.9", False),
+    # local versions sort after their public version, so still "above"
+    ("point_eq_local_of_point", _POINT, "==", "3.8.0+local", False),
+    ("point_ne_local_of_point", _POINT, "!=", "3.8.0+local", True),
+    # malformed literal: undecidable, not an error
+    ("point_eq_invalid_literal", _POINT, "==", "not-a-version", None),
+    ("point_ne_invalid_literal", _POINT, "!=", "not-a-version", None),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "constraint", "comparator", "literal", "expected"),
+    range_point_equality_testdata,
+    ids=[x[0] for x in range_point_equality_testdata],
+)
+def test_range_constraint_point_equality_evaluate(
+    name: str,
+    constraint: RangeConstraint,
+    comparator: Comparator,
+    literal: str,
+    expected: bool | None,
+):
+    assert constraint.evaluate(comparator, literal) == expected
+
+
+# -- Same fixed point, ordering comparators: "3.8 <comparator> literal" must
+# resolve consistently with where the literal actually sorts relative to 3.8.
+range_point_ordering_testdata = [
+    # literal below the point -> "3.8 < literal" is False, "3.8 > literal" is True
+    ("point_lt_lower_patch", _POINT, "<", "3.7.9", False),
+    ("point_le_lower_patch", _POINT, "<=", "3.7.9", False),
+    ("point_gt_lower_patch", _POINT, ">", "3.7.9", True),
+    ("point_ge_lower_patch", _POINT, ">=", "3.7.9", True),
+    ("point_lt_prerelease_of_point", _POINT, "<", "3.8.0b1", False),
+    ("point_le_prerelease_of_point", _POINT, "<=", "3.8.0b1", False),
+    ("point_gt_prerelease_of_point", _POINT, ">", "3.8.0b1", True),
+    ("point_ge_prerelease_of_point", _POINT, ">=", "3.8.0b1", True),
+    ("point_lt_dev_of_point", _POINT, "<", "3.8.0.dev1", False),
+    ("point_ge_dev_of_point", _POINT, ">=", "3.8.0.dev1", True),
+    # literal exactly equal to the point -> "<"/">" are False, "<="/">=" are True
+    ("point_lt_equal_literal", _POINT, "<", "3.8.0", False),
+    ("point_le_equal_literal", _POINT, "<=", "3.8.0", True),
+    ("point_gt_equal_literal", _POINT, ">", "3.8.0", False),
+    ("point_ge_equal_literal", _POINT, ">=", "3.8.0", True),
+    # literal above the point -> "3.8 < literal" is True, "3.8 > literal" is False
+    ("point_lt_higher_minor", _POINT, "<", "3.9", True),
+    ("point_le_higher_minor", _POINT, "<=", "3.9", True),
+    ("point_gt_higher_minor", _POINT, ">", "3.9", False),
+    ("point_ge_higher_minor", _POINT, ">=", "3.9", False),
+    ("point_lt_higher_patch", _POINT, "<", "3.8.1", True),
+    ("point_ge_higher_patch", _POINT, ">=", "3.8.1", False),
+    ("point_lt_post_of_point", _POINT, "<", "3.8.0.post1", True),
+    ("point_ge_post_of_point", _POINT, ">=", "3.8.0.post1", False),
+    # malformed literal: undecidable, not an error
+    ("point_lt_invalid_literal", _POINT, "<", "not-a-version", None),
+    ("point_ge_invalid_literal", _POINT, ">=", "not-a-version", None),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "constraint", "comparator", "literal", "expected"),
+    range_point_ordering_testdata,
+    ids=[x[0] for x in range_point_ordering_testdata],
+)
+def test_range_constraint_point_ordering_evaluate(
+    name: str,
+    constraint: RangeConstraint,
+    comparator: Comparator,
+    literal: str,
+    expected: bool | None,
+):
+    assert constraint.evaluate(comparator, literal) == expected
+
+
+# PEP 440 forbids a local version identifier in an ordered (<,<=,>,>=)
+# specifier clause, so building the SpecifierSet for these raises
+# InvalidSpecifier -- correctly undecidable, same as any other malformed
+# literal, even though "==" and "!=" (which don't go through SpecifierSet)
+# handle the same literal above just fine.
+range_point_local_version_ordering_testdata = [
+    ("point_lt_local_version_undecidable", _POINT, "<", "3.8.0+local", None),
+    ("point_le_local_version_undecidable", _POINT, "<=", "3.8.0+local", None),
+    ("point_gt_local_version_undecidable", _POINT, ">", "3.8.0+local", None),
+    ("point_ge_local_version_undecidable", _POINT, ">=", "3.8.0+local", None),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "constraint", "comparator", "literal", "expected"),
+    range_point_local_version_ordering_testdata,
+    ids=[x[0] for x in range_point_local_version_ordering_testdata],
+)
+def test_range_constraint_point_local_version_ordering_evaluate(
+    name: str,
+    constraint: RangeConstraint,
+    comparator: Comparator,
+    literal: str,
+    expected: None,
+):
+    assert constraint.evaluate(comparator, literal) == expected
+
+
+# -- A genuine interval, [3.7, 3.11) -- min included, max excluded, the same
+# shape as a `Requires-Python: >=3.7,<3.11` floor+ceiling. Equality only
+# decides when the literal falls entirely outside the interval; being
+# *inside* -- even sitting exactly on the included boundary -- still means
+# "could be any of several versions", so it stays undecidable.
+_RANGE = RangeConstraint(Version("3.7"), Version("3.11"))
+
+range_containment_testdata = [
+    ("below_range_eq_decidable_false", _RANGE, "==", "3.0", False),
+    ("below_range_ne_decidable_true", _RANGE, "!=", "3.0", True),
+    # 3.7 is the included minimum -- a real member, but one of several
+    ("at_included_min_eq_stays_undecidable", _RANGE, "==", "3.7", None),
+    ("at_included_min_ne_stays_undecidable", _RANGE, "!=", "3.7", None),
+    ("just_inside_start_eq_stays_undecidable", _RANGE, "==", "3.7.1", None),
+    ("just_inside_start_ne_stays_undecidable", _RANGE, "!=", "3.7.1", None),
+    ("well_inside_eq_stays_undecidable", _RANGE, "==", "3.9", None),
+    ("well_inside_ne_stays_undecidable", _RANGE, "!=", "3.9", None),
+    ("just_before_end_eq_stays_undecidable", _RANGE, "==", "3.10.9", None),
+    ("just_before_end_ne_stays_undecidable", _RANGE, "!=", "3.10.9", None),
+    # 3.11 is the excluded maximum -- not a real member at all, so this is
+    # decidable, unlike the included-boundary case above
+    ("at_excluded_max_eq_decidable_false", _RANGE, "==", "3.11", False),
+    ("at_excluded_max_ne_decidable_true", _RANGE, "!=", "3.11", True),
+    ("above_range_eq_decidable_false", _RANGE, "==", "4.0", False),
+    ("above_range_ne_decidable_true", _RANGE, "!=", "4.0", True),
+    # a prerelease of the floor sorts below the floor, so it's below the
+    # range entirely, not "at" it
+    ("prerelease_of_min_is_below_range_eq_decidable_false", _RANGE, "==", "3.7.0rc1", False),
+    ("prerelease_of_min_is_below_range_ne_decidable_true", _RANGE, "!=", "3.7.0rc1", True),
+    ("containment_invalid_literal_eq_undecidable", _RANGE, "==", "not-a-version", None),
+    ("containment_invalid_literal_ne_undecidable", _RANGE, "!=", "not-a-version", None),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "constraint", "comparator", "literal", "expected"),
+    range_containment_testdata,
+    ids=[x[0] for x in range_containment_testdata],
+)
+def test_range_constraint_containment_evaluate(
+    name: str,
+    constraint: RangeConstraint,
+    comparator: Comparator,
+    literal: str,
+    expected: bool | None,
+):
+    assert constraint.evaluate(comparator, literal) == expected
+
+
+# -- Same [3.7, 3.11) interval, ordering comparators: decided by sampling
+# both boundaries against the query, which is sound because a comparator's
+# truth value is monotonic in version (see constraint.py). Walking every
+# position from below the floor to above the ceiling is what gives
+# confidence the sampling is wired to the right boundary for each direction.
+range_monotonic_boundary_testdata = [
+    ("below_range_lt_decidable_false", _RANGE, "<", "3.0", False),
+    ("below_range_ge_decidable_true", _RANGE, ">=", "3.0", True),
+    ("just_inside_start_lt_stays_undecidable", _RANGE, "<", "3.7.1", None),
+    ("just_inside_start_ge_stays_undecidable", _RANGE, ">=", "3.7.1", None),
+    ("well_inside_lt_stays_undecidable", _RANGE, "<", "3.9", None),
+    ("well_inside_ge_stays_undecidable", _RANGE, ">=", "3.9", None),
+    ("just_before_end_lt_stays_undecidable", _RANGE, "<", "3.10.9", None),
+    ("just_before_end_ge_stays_undecidable", _RANGE, ">=", "3.10.9", None),
+    ("above_range_lt_decidable_true", _RANGE, "<", "4.0", True),
+    ("above_range_ge_decidable_false", _RANGE, ">=", "4.0", False),
+    # 3.7 is the included minimum: "<"/">=" each have a boundary to lock
+    # onto, but "<="/">" straddle it for the same reason 3.7 itself is a
+    # real member that disagrees with the rest of the range.
+    ("at_included_min_lt_decidable_false", _RANGE, "<", "3.7", False),
+    ("at_included_min_le_stays_undecidable", _RANGE, "<=", "3.7", None),
+    ("at_included_min_gt_stays_undecidable", _RANGE, ">", "3.7", None),
+    ("at_included_min_ge_decidable_true", _RANGE, ">=", "3.7", True),
+    # 3.11 is the excluded maximum: no real member is >= 3.11 or fails
+    # < 3.11, but boundary sampling tests the literal 3.11 against the
+    # query as if it were a real member, so "<" and ">=" can't tell this
+    # apart from a genuine straddle -- a known conservative gap from
+    # ignoring include_max here, not a wrong answer, just a missed one.
+    ("at_excluded_max_lt_stays_undecidable_conservative_gap", _RANGE, "<", "3.11", None),
+    ("at_excluded_max_le_decidable_true", _RANGE, "<=", "3.11", True),
+    ("at_excluded_max_gt_decidable_false", _RANGE, ">", "3.11", False),
+    ("at_excluded_max_ge_stays_undecidable_conservative_gap", _RANGE, ">=", "3.11", None),
+    # a prerelease of the floor sorts below the floor -- below the range
+    ("prerelease_of_min_is_below_range_lt_decidable_false", _RANGE, "<", "3.7.0rc1", False),
+    ("prerelease_of_min_is_below_range_ge_decidable_true", _RANGE, ">=", "3.7.0rc1", True),
+    # a post-release of the floor sorts above it -- just inside, not at it
+    ("post_release_of_min_is_inside_range_lt_stays_undecidable", _RANGE, "<", "3.7.0.post1", None),
+    ("post_release_of_min_is_inside_range_ge_stays_undecidable", _RANGE, ">=", "3.7.0.post1", None),
+    # a dev release of the ceiling sorts below it -- inside the open range,
+    # not at the excluded boundary
+    ("dev_release_of_max_is_inside_range_lt_stays_undecidable", _RANGE, "<", "3.11.0.dev1", None),
+    ("dev_release_of_max_is_inside_range_ge_stays_undecidable", _RANGE, ">=", "3.11.0.dev1", None),
+    # an explicit "0.0" floor (distinct from an unbounded min=None) is still
+    # just an ordinary boundary to sample
+    (
+        "explicit_zero_floor_lt_decidable_true",
+        RangeConstraint(Version("0.0"), Version("3.0")),
+        "<",
+        "5.0",
+        True,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "constraint", "comparator", "literal", "expected"),
+    range_monotonic_boundary_testdata,
+    ids=[x[0] for x in range_monotonic_boundary_testdata],
+)
+def test_range_constraint_monotonic_boundary_evaluate(
+    name: str,
+    constraint: RangeConstraint,
+    comparator: Comparator,
+    literal: str,
+    expected: bool | None,
+):
+    assert constraint.evaluate(comparator, literal) == expected
+
+
+# -- in / not in / ~= : always undecidable for an interval, regardless of
+# whether it's a point or a genuine range
+range_undecidable_testdata = [
+    ("in_undecidable", RangeConstraint(Version("3.9"), None), "in", "3.9", None),
+    ("not_in_undecidable", RangeConstraint(Version("3.9"), None), "not in", "3.9", None),
+    ("compatible_release_undecidable", RangeConstraint(Version("3.9"), None), "~=", "3.9", None),
+    ("in_undecidable_for_a_point", _POINT, "in", "3.8", None),
+    ("not_in_undecidable_for_a_point", _POINT, "not in", "3.8", None),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "constraint", "comparator", "literal", "expected"),
+    range_undecidable_testdata,
+    ids=[x[0] for x in range_undecidable_testdata],
+)
+def test_range_constraint_always_undecidable_evaluate(
+    name: str,
+    constraint: RangeConstraint,
+    comparator: Comparator,
+    literal: str,
+    expected: None,
+):
+    assert constraint.evaluate(comparator, literal) == expected
+
+
+def test_range_constraint_key_on_left_is_irrelevant():
+    """RangeConstraint never supports in/not in, so key_on_left cannot change the answer."""
+    constraint = RangeConstraint(Version("3.9"), None)
+    assert constraint.evaluate("in", "3.9", key_on_left=True) is None
+    assert constraint.evaluate("not in", "3.9", key_on_left=True) is None
 
 
 # coerce() tests
