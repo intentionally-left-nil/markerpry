@@ -10,6 +10,7 @@ from .constraint import (
     ExactConstraint,
     FlagConstraint,
     PatternConstraint,
+    RangeConstraint,
     StringConstraint,
     coerce,
 )
@@ -42,6 +43,7 @@ __all__ = [
     "PatternConstraint",
     "ExactConstraint",
     "FlagConstraint",
+    "RangeConstraint",
     "coerce",
     "TRUE",
     "FALSE",

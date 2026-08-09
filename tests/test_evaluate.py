@@ -6,6 +6,7 @@ from markerpry.constraint import (
     ExactConstraint,
     FlagConstraint,
     PatternConstraint,
+    RangeConstraint,
     StringConstraint,
 )
 from markerpry.node import (
@@ -1042,3 +1043,83 @@ def test_packaging_comparison(name: str, marker_str: str, env: Environment, expe
     packaging_env = {k: str(v[0]) for k, v in env.items()}
     packaging_result = packaging_marker.evaluate(packaging_env)
     assert packaging_result == expected
+
+
+# RangeConstraint end-to-end tests: a RangeConstraint stands in for a `Requires-Python` range
+requires_python_scenario_testdata = [
+    (
+        # Requires-Python: >=3.9 (an abi3 wheel's floor, no ceiling); the
+        # floor doesn't reach 3.11, so this stays conditional.
+        "abi3_floor_below_guard_stays_unresolved",
+        parse('python_version < "3.11"'),
+        {"python_version": [RangeConstraint(min=Version("3.9"), max=None)]},
+        parse('python_version < "3.11"'),
+    ),
+    (
+        # Requires-Python: >=3.12; the floor is entirely past 3.11, so the
+        # guard can never trigger and the dependency drops.
+        "abi3_floor_above_guard_resolves_false",
+        parse('python_version < "3.11"'),
+        {"python_version": [RangeConstraint(min=Version("3.12"), max=None)]},
+        BooleanNode(False),
+    ),
+    (
+        # Requires-Python: >=3.8, no ceiling. A common backport guard, e.g.
+        # `importlib-metadata; python_version < "3.8"`, can never trigger
+        # once the floor already excludes every python it's guarding for.
+        "backport_guard_below_floor_resolves_false",
+        parse('python_version < "3.8"'),
+        {"python_version": [RangeConstraint(min=Version("3.8"), max=None)]},
+        BooleanNode(False),
+    ),
+    (
+        # Same floor, the complementary feature-detection guard: every
+        # supported python satisfies it, so it always holds.
+        "feature_floor_guard_resolves_true",
+        parse('python_version >= "3.8"'),
+        {"python_version": [RangeConstraint(min=Version("3.8"), max=None)]},
+        BooleanNode(True),
+    ),
+    (
+        # Requires-Python: >=3.7,<3.11 (a compiled extension without wheels
+        # yet for newer pythons). A guard for a 3.12-only backport can never
+        # trigger, since the ceiling never reaches that far.
+        "narrow_window_new_python_guard_resolves_false",
+        parse('python_version >= "3.12"'),
+        {"python_version": [RangeConstraint(Version("3.7"), Version("3.11"))]},
+        BooleanNode(False),
+    ),
+    (
+        # Same window, the complementary guard: every supported python is
+        # already below 3.12, so it always holds.
+        "narrow_window_old_python_guard_resolves_true",
+        parse('python_version < "3.12"'),
+        {"python_version": [RangeConstraint(Version("3.7"), Version("3.11"))]},
+        BooleanNode(True),
+    ),
+    (
+        # A real setup.cfg/pyproject shape: an optional-dependency marker
+        # combining the python floor with an extras flag. Both sides decide,
+        # so the whole `and` collapses.
+        "python_floor_and_matching_extra_resolves_true",
+        parse('python_version >= "3.8" and extra == "docs"'),
+        {"python_version": [RangeConstraint(min=Version("3.8"), max=None)], "extra": ["docs"]},
+        BooleanNode(True),
+    ),
+    (
+        "python_floor_and_nonmatching_extra_resolves_false",
+        parse('python_version >= "3.8" and extra == "docs"'),
+        {"python_version": [RangeConstraint(min=Version("3.8"), max=None)], "extra": ["tests"]},
+        BooleanNode(False),
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "expr", "env", "expected"),
+    requires_python_scenario_testdata,
+    ids=[x[0] for x in requires_python_scenario_testdata],
+)
+def test_requires_python_scenario_evaluate(name: str, expr: Node, env: Environment, expected: Node):
+    result = expr.evaluate(env)
+    assert result == expected

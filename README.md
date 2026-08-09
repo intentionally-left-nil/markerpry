@@ -13,6 +13,7 @@
   - [Tree Navigation](#tree-navigation)
   - [String Representation](#string-representation)
   - [Evaluation](#evaluation)
+    - [Range Constraints](#range-constraints)
 - [License](#license)
 
 ## Installation
@@ -131,6 +132,15 @@ Each environment key can contain a list of different types of values:
   - `!=` checks if the pattern doesn't match
 - `bool` values: Unconditionally decide every comparator
   - `True` means "yes"; `False` means "no"
+- `RangeConstraint` objects: Represent an open or closed interval of versions
+  - `RangeConstraint(min, max, include_min=True, include_max=False)` — either
+    bound may be `None` for "unbounded on this side"
+  - Decidable for `<`, `<=`, `>`, `>=` only when the *entire* interval agrees
+    on the answer (checked by sampling both boundaries); for `==`/`===`/`!=`
+    only when the compared point falls outside the interval, or the interval
+    is a single point equal to it
+  - `in`/`not in`/`~=` are always undecidable for an interval
+  - See [Range Constraints](#range-constraints) below
 
 
 #### Multiple Values
@@ -173,6 +183,27 @@ env = {"python_version": [Version("3.8")], "os_name": ["posix"]}
 ```
 
 If any parts of the expression can't be evaluated (due to missing environment values or incompatible comparators), they remain as expressions in the resulting tree.
+
+#### Range Constraints
+
+`RangeConstraint` represents an open or closed interval of versions, and only resolves an expression when the *entire* interval agrees on the answer — unlike a list of `Version` values, which is evaluated existentially and can spuriously resolve interval questions:
+
+```python
+from markerpry import RangeConstraint, parse
+from packaging.version import Version
+
+# An abi3 wheel's floor: python_version >= 3.9, no ceiling
+tree = parse('python_version < "3.11"')
+
+env = {"python_version": [RangeConstraint(min=Version("3.9"), max=None)]}
+result = tree.evaluate(env)
+# result is the SAME unresolved node: "< 3.11" holds for some but not all
+# versions >= 3.9, so it stays conditional.
+
+env = {"python_version": [RangeConstraint(min=Version("3.12"), max=None)]}
+result = tree.evaluate(env)
+# result is BooleanNode(False): every version >= 3.12 fails "< 3.11".
+```
 
 ## License
 
