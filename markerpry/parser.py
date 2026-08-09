@@ -5,7 +5,8 @@ from typing import Any, cast
 from packaging._parser import Op, Value, Variable
 from packaging.markers import Marker
 
-from markerpry.node import CompareNode, ComparisonOperator, ContainsNode, Node, OperatorNode
+from markerpry.constraint import ComparisonOperator
+from markerpry.node import CompareNode, ContainsNode, Node, OperatorNode
 
 REVERSE_MAP: Mapping[ComparisonOperator, ComparisonOperator] = MappingProxyType(
     {
