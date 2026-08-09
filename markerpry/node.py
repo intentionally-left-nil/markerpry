@@ -212,20 +212,25 @@ class OperatorNode(Node):
         if left is self._left and right is self._right:
             return self
 
-        if self.operator == "or":
+        return OperatorNode.combine(self.operator, left, right)
+
+    @classmethod
+    def combine(cls, operator: Literal["and", "or"], left: Node, right: Node) -> Node:
+        """The and/or short-circuit simplification of two already-evaluated child nodes."""
+        if operator == "or":
             if isinstance(left, BooleanNode):
                 return TRUE if left.state else right
             if isinstance(right, BooleanNode):
                 return TRUE if right.state else left
-            return OperatorNode(self.operator, left, right)
-        elif self.operator == "and":
+            return cls(operator, left, right)
+        elif operator == "and":
             if isinstance(left, BooleanNode):
                 return right if left.state else FALSE
             if isinstance(right, BooleanNode):
                 return left if right.state else FALSE
-            return OperatorNode(self.operator, left, right)
+            return cls(operator, left, right)
         else:
-            assert_never(self.operator)
+            assert_never(operator)
 
     @override
     def __contains__(self, key: str) -> bool:

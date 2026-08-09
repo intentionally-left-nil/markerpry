@@ -16,3 +16,6 @@ dist/
 .coverage.*
 coverage.xml
 htmlcov/
+
+# AI artifacts
+.kilo
