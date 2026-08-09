@@ -1,5 +1,5 @@
 import pytest
-from markerpry.node import FALSE, TRUE, BooleanNode, ExpressionNode, OperatorNode
+from markerpry.node import FALSE, TRUE, BooleanNode, CompareNode, ContainsNode, OperatorNode
 
 
 def test_boolean_node_contains():
@@ -10,9 +10,9 @@ def test_boolean_node_contains():
     assert "" not in node
 
 
-def test_expression_node_contains():
-    """Test that ExpressionNode contains only its lhs key."""
-    expr = ExpressionNode("python_version", ">=", "3.7")
+def test_compare_node_contains():
+    """Test that CompareNode contains only its key."""
+    expr = CompareNode(key="python_version", comparator=">=", literal="3.7")
 
     assert "python_version" in expr
     assert "os_name" not in expr
@@ -22,8 +22,8 @@ def test_expression_node_contains():
 
 def test_operator_node_contains():
     """Test that OperatorNode contains keys from both its children."""
-    expr1 = ExpressionNode("python_version", ">=", "3.7")
-    expr2 = ExpressionNode("os_name", "==", "posix")
+    expr1 = CompareNode(key="python_version", comparator=">=", literal="3.7")
+    expr2 = CompareNode(key="os_name", comparator="==", literal="posix")
     and_node = OperatorNode("and", expr1, expr2)
 
     assert "python_version" in and_node
@@ -34,10 +34,10 @@ def test_operator_node_contains():
 
 def test_operator_node_nested_contains():
     """Test that OperatorNode correctly checks deeply nested expressions."""
-    expr1 = ExpressionNode("python_version", ">=", "3.7")
-    expr2 = ExpressionNode("os_name", "==", "posix")
+    expr1 = CompareNode(key="python_version", comparator=">=", literal="3.7")
+    expr2 = CompareNode(key="os_name", comparator="==", literal="posix")
     and_node = OperatorNode("and", expr1, expr2)
-    expr3 = ExpressionNode("implementation_name", "==", "cpython")
+    expr3 = CompareNode(key="implementation_name", comparator="==", literal="cpython")
     or_node = OperatorNode("or", and_node, expr3)
 
     assert "python_version" in or_node
@@ -49,7 +49,7 @@ def test_operator_node_nested_contains():
 
 def test_operator_node_with_boolean_contains():
     """Test that OperatorNode with boolean children still checks remaining expressions."""
-    expr = ExpressionNode("python_version", ">=", "3.7")
+    expr = CompareNode(key="python_version", comparator=">=", literal="3.7")
     true_node = BooleanNode(True)
     and_node = OperatorNode("and", true_node, expr)
 
@@ -99,72 +99,72 @@ def test_resolved_attribute():
     """Test that the resolved attribute is True iff a node is a BooleanNode"""
     assert BooleanNode(True).resolved
     assert BooleanNode(False).resolved
-    assert not ExpressionNode("python_version", ">=", "3.7").resolved
+    assert not CompareNode(key="python_version", comparator=">=", literal="3.7").resolved
     assert not OperatorNode(
         "and",
-        ExpressionNode("os_name", "==", "posix"),
-        ExpressionNode("python_version", ">=", "3.7"),
+        CompareNode(key="os_name", comparator="==", literal="posix"),
+        CompareNode(key="python_version", comparator=">=", literal="3.7"),
     ).resolved
 
 
 def test_non_boolean_node_coercion():
     """Test that non-boolean nodes cannot be coerced to bool."""
-    expr = ExpressionNode("python_version", ">=", "3.7")
+    expr = CompareNode(key="python_version", comparator=">=", literal="3.7")
     op = OperatorNode(
         "and",
-        ExpressionNode("os_name", "==", "posix"),
-        ExpressionNode("python_version", ">=", "3.7"),
+        CompareNode(key="os_name", comparator="==", literal="posix"),
+        CompareNode(key="python_version", comparator=">=", literal="3.7"),
     )
 
-    with pytest.raises(TypeError, match="Cannot convert ExpressionNode to bool"):
+    with pytest.raises(TypeError, match="Cannot convert CompareNode to bool"):
         bool(expr)
 
     with pytest.raises(TypeError, match="Cannot convert OperatorNode to bool"):
         bool(op)
 
     # Test in if statement
-    with pytest.raises(TypeError, match="Cannot convert ExpressionNode to bool"):
+    with pytest.raises(TypeError, match="Cannot convert CompareNode to bool"):
         _ = 1 if expr else 0
 
     with pytest.raises(TypeError, match="Cannot convert OperatorNode to bool"):
         _ = 1 if op else 0
 
 
-# In/NotIn operator tests
+# ContainsNode (in/not in) tests
 in_operator_testdata = [
     (
-        "in_check_rhs",
-        ExpressionNode(lhs="value", comparator="in", rhs="python_version"),
+        "in_check_key",
+        ContainsNode(key="python_version", literal="value", key_on_left=False),
         "python_version",
-        True,  # Should check rhs
+        True,  # Should check the key
     ),
     (
-        "in_check_lhs",
-        ExpressionNode(lhs="value", comparator="in", rhs="python_version"),
+        "in_check_literal",
+        ContainsNode(key="python_version", literal="value", key_on_left=False),
         "value",
-        False,  # lhs is not a dependency
+        False,  # literal is not a dependency
     ),
     (
         "in_check_other",
-        ExpressionNode(lhs="value", comparator="in", rhs="python_version"),
+        ContainsNode(key="python_version", literal="value", key_on_left=False),
         "other_key",
         False,  # other keys not included
     ),
     (
-        "not_in_check_rhs",
-        ExpressionNode(lhs="value", comparator="not in", rhs="python_version"),
+        "not_in_check_key",
+        ContainsNode(key="python_version", literal="value", key_on_left=False, negate=True),
         "python_version",
-        True,  # Should check rhs
+        True,  # Should check the key
     ),
     (
-        "not_in_check_lhs",
-        ExpressionNode(lhs="value", comparator="not in", rhs="python_version"),
+        "not_in_check_literal",
+        ContainsNode(key="python_version", literal="value", key_on_left=False, negate=True),
         "value",
-        False,  # lhs is not a dependency
+        False,  # literal is not a dependency
     ),
     (
         "not_in_check_other",
-        ExpressionNode(lhs="value", comparator="not in", rhs="python_version"),
+        ContainsNode(key="python_version", literal="value", key_on_left=False, negate=True),
         "other_key",
         False,  # other keys not included
     ),
@@ -176,41 +176,41 @@ in_operator_testdata = [
     in_operator_testdata,
     ids=[x[0] for x in in_operator_testdata],
 )
-def test_in_operator_contains(name: str, expr: ExpressionNode, key: str, expected: bool):
-    """Test that 'in' and 'not in' expressions check the correct keys."""
+def test_in_operator_contains(name: str, expr: ContainsNode, key: str, expected: bool):
+    """Test that ContainsNode checks the correct keys."""
     assert (key in expr) == expected
 
 
-# String representation tests for in/not in
+# String representation tests for ContainsNode and triple-equal CompareNode
 in_str_testdata = [
     (
         "in_version",
-        ExpressionNode(lhs="3.7", comparator="in", rhs="python_version"),
+        ContainsNode(key="python_version", literal="3.7", key_on_left=False),
         '"3.7" in python_version',
     ),
     (
         "in_platform",
-        ExpressionNode(lhs="linux", comparator="in", rhs="sys_platform"),
+        ContainsNode(key="sys_platform", literal="linux", key_on_left=False),
         '"linux" in sys_platform',
     ),
     (
         "not_in_version",
-        ExpressionNode(lhs="3.7", comparator="not in", rhs="python_version"),
+        ContainsNode(key="python_version", literal="3.7", key_on_left=False, negate=True),
         '"3.7" not in python_version',
     ),
     (
         "not_in_platform",
-        ExpressionNode(lhs="linux", comparator="not in", rhs="sys_platform"),
+        ContainsNode(key="sys_platform", literal="linux", key_on_left=False, negate=True),
         '"linux" not in sys_platform',
     ),
     (
         "triple_equal_version",
-        ExpressionNode(lhs="python_version", comparator="===", rhs="3.7"),
+        CompareNode(key="python_version", comparator="===", literal="3.7"),
         'python_version === "3.7"',
     ),
     (
         "triple_equal_platform",
-        ExpressionNode(lhs="sys_platform", comparator="===", rhs="linux"),
+        CompareNode(key="sys_platform", comparator="===", literal="linux"),
         'sys_platform === "linux"',
     ),
 ]
@@ -221,76 +221,76 @@ in_str_testdata = [
     in_str_testdata,
     ids=[x[0] for x in in_str_testdata],
 )
-def test_in_operator_str(name: str, expr: ExpressionNode, expected_str: str):
-    """Test string representation of 'in' and 'not in' expressions."""
+def test_in_operator_str(name: str, expr: "CompareNode | ContainsNode", expected_str: str):
+    """Test string representation of ContainsNode and triple-equal CompareNode expressions."""
     assert str(expr) == expected_str
 
 
-# Expression node contains tests
+# CompareNode/ContainsNode contains tests
 expression_contains_testdata = [
     (
-        "normal_comparison_lhs",
-        ExpressionNode(lhs="python_version", comparator=">=", rhs="3.7"),
+        "normal_comparison_key",
+        CompareNode(key="python_version", comparator=">=", literal="3.7"),
         "python_version",
-        True,  # lhs is the key for normal comparisons
+        True,  # key is the dependency for CompareNode
     ),
     (
-        "normal_comparison_rhs",
-        ExpressionNode(lhs="python_version", comparator=">=", rhs="3.7"),
+        "normal_comparison_literal",
+        CompareNode(key="python_version", comparator=">=", literal="3.7"),
         "3.7",
-        False,  # rhs is not a key for normal comparisons
+        False,  # literal is not a key
     ),
     (
-        "in_operator_lhs",
-        ExpressionNode(lhs="3.7", comparator="in", rhs="python_version"),
+        "in_operator_literal",
+        ContainsNode(key="python_version", literal="3.7", key_on_left=False),
         "3.7",
-        False,  # lhs is not a key for 'in' operator
+        False,  # literal is not a key for the 'in' operator
     ),
     (
-        "in_operator_rhs",
-        ExpressionNode(lhs="3.7", comparator="in", rhs="python_version"),
+        "in_operator_key",
+        ContainsNode(key="python_version", literal="3.7", key_on_left=False),
         "python_version",
-        True,  # rhs is the key for 'in' operator
+        True,  # key is the dependency for the 'in' operator
     ),
     (
-        "not_in_operator_lhs",
-        ExpressionNode(lhs="3.7", comparator="not in", rhs="python_version"),
+        "not_in_operator_literal",
+        ContainsNode(key="python_version", literal="3.7", key_on_left=False, negate=True),
         "3.7",
-        False,  # lhs is not a key for 'not in' operator
+        False,  # literal is not a key for the 'not in' operator
     ),
     (
-        "not_in_operator_rhs",
-        ExpressionNode(lhs="3.7", comparator="not in", rhs="python_version"),
+        "not_in_operator_key",
+        ContainsNode(key="python_version", literal="3.7", key_on_left=False, negate=True),
         "python_version",
-        True,  # rhs is the key for 'not in' operator
+        True,  # key is the dependency for the 'not in' operator
     ),
     (
         "normal_comparison_other",
-        ExpressionNode(lhs="python_version", comparator=">=", rhs="3.7"),
+        CompareNode(key="python_version", comparator=">=", literal="3.7"),
         "other_key",
         False,  # unrelated keys are never contained
     ),
     (
         "in_operator_other",
-        ExpressionNode(lhs="3.7", comparator="in", rhs="python_version"),
+        ContainsNode(key="python_version", literal="3.7", key_on_left=False),
         "other_key",
         False,  # unrelated keys are never contained
     ),
     (
-        "triple_equal_lhs",
-        ExpressionNode(lhs="python_version", comparator="===", rhs="3.7"),
+        "triple_equal_key",
+        CompareNode(key="python_version", comparator="===", literal="3.7"),
         "python_version",
-        True,  # lhs is the key for triple equal comparison
+        True,  # key is the dependency for triple equal comparison
     ),
     (
-        "triple_equal_rhs",
-        ExpressionNode(lhs="python_version", comparator="===", rhs="3.7"),
+        "triple_equal_literal",
+        CompareNode(key="python_version", comparator="===", literal="3.7"),
         "3.7",
-        False,  # rhs is not a key for triple equal comparison
+        False,  # literal is not a key for triple equal comparison
     ),
     (
         "triple_equal_other",
-        ExpressionNode(lhs="python_version", comparator="===", rhs="3.7"),
+        CompareNode(key="python_version", comparator="===", literal="3.7"),
         "other_key",
         False,  # unrelated keys are never contained
     ),
@@ -302,6 +302,8 @@ expression_contains_testdata = [
     expression_contains_testdata,
     ids=[x[0] for x in expression_contains_testdata],
 )
-def test_expression_contains(name: str, expr: ExpressionNode, key: str, expected: bool):
+def test_expression_contains(
+    name: str, expr: "CompareNode | ContainsNode", key: str, expected: bool
+):
     """Test that __contains__ works correctly for all expression types."""
     assert (key in expr) == expected
