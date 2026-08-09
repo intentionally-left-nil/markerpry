@@ -201,7 +201,14 @@ class OperatorNode(Node):
 
     @override
     def __str__(self) -> str:
-        return f"({self._left} {self.operator} {self._right})"
+        left = self._operand_str(self._left)
+        right = self._operand_str(self._right)
+        return f"{left} {self.operator} {right}"
+
+    def _operand_str(self, node: "Node") -> str:
+        if isinstance(node, OperatorNode) and node.operator != self.operator:
+            return f"({node})"
+        return str(node)
 
     @override
     def evaluate(self, environment: Environment) -> "Node":
