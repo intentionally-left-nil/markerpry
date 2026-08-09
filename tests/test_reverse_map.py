@@ -1,7 +1,6 @@
 import pytest
-from packaging.markers import Marker
-
 from markerpry.parser import REVERSE_MAP
+from packaging.markers import Marker
 
 test_cases: list[tuple[str, str, dict[str, str]]] = []
 for op, reverse_op in REVERSE_MAP.items():
@@ -20,7 +19,7 @@ for op, reverse_op in REVERSE_MAP.items():
 
 
 @pytest.mark.parametrize(
-    "marker_str,reversed_marker_str,env",
+    ("marker_str", "reversed_marker_str", "env"),
     test_cases,
 )
 def test_reverse_map_equivalence(marker_str: str, reversed_marker_str: str, env: dict[str, str]):

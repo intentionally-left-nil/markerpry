@@ -11,11 +11,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.12"
           enable-cache: true
       - name: Build the release
         run: uv build
@@ -32,7 +30,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     environment:
       name: pypi
-      url: https://pypi.org/p/dfu
+      url: https://pypi.org/p/markerpry
     permissions:
       id-token: write
     steps:

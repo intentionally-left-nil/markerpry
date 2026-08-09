@@ -49,8 +49,8 @@ return `None` for leaf nodes (BooleanNode and ExpressionNode):
 
 ```python
 # For operator nodes (and/or), access child nodes
-left_expr = tree.left   # python_version >= "3.7"
-right_expr = tree.right # (os_name == "posix" or platform_system == "Linux")
+left_expr = tree.left  # python_version >= "3.7"
+right_expr = tree.right  # (os_name == "posix" or platform_system == "Linux")
 
 # For nested expressions, continue traversing
 nested_left = right_expr.left  # os_name == "posix"
@@ -85,6 +85,7 @@ marker_string = str(tree)
 
 # Use with packaging.markers
 from packaging.markers import Marker
+
 marker = Marker(str(tree))
 ```
 
@@ -101,7 +102,7 @@ env = {
     "python_version": [Version("3.8")],
     "os_name": ["posix"],
     "platform_system": ["Linux"],
-    "implementation_name": [re.compile("py.*")]  # Matches python, pypy, etc.
+    "implementation_name": [re.compile("py.*")],  # Matches python, pypy, etc.
 }
 
 # Evaluate the tree
@@ -133,10 +134,7 @@ Each environment key can contain a list of different types of values:
 When multiple values are provided for an environment key:
 
 ```python
-env = {
-    "python_version": [Version("3.8"), Version("3.9")],
-    "os_name": ["posix", "nt"]
-}
+env = {"python_version": [Version("3.8"), Version("3.9")], "os_name": ["posix", "nt"]}
 ```
 
 - The expression is evaluated against each value

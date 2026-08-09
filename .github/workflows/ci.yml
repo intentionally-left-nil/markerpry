@@ -1,51 +1,47 @@
 name: CI
+
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  ci:
+  lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.12"
           enable-cache: true
-      - name: Install dependencies
-        run: uv sync --all-groups
-      - name: Run tests
-        run: uv run pytest
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: |
-            ./coverage.xml
-            htmlcov/
-      - name: Run linters
-        run: |
-          uv run isort --check --diff .
-          uv run black --check --diff .
-          uv run mypy --install-types --non-interactive --check-untyped-defs markerpry tests
-  display-coverage:
-    needs: ci
+      - run: make install
+      - run: make lint
+      - run: make format-check
+
+  typecheck:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    permissions:
-      pull-requests: write
     steps:
-      - name: Download coverage report
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: make install
+      - run: make typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: make install
+      - run: make test
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: coverage-report
-      - name: Display coverage
-        uses: orgoro/coverage@v3.2
-        with:
-          coverageFile: coverage.xml
-          token: ${{ secrets.GITHUB_TOKEN }}
+          path: coverage.xml

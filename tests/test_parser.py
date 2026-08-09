@@ -1,8 +1,7 @@
 import pytest
-from packaging.markers import Marker
-
-from markerpry.node import BooleanNode, ExpressionNode, Node, OperatorNode
+from markerpry.node import ExpressionNode, Node, OperatorNode
 from markerpry.parser import parse, parse_marker
+from packaging.markers import Marker
 
 # Basic comparison tests
 basic_markers = [
@@ -22,7 +21,9 @@ basic_markers = [
 ]
 
 
-@pytest.mark.parametrize("marker_str,expected", basic_markers, ids=[x[0] for x in basic_markers])
+@pytest.mark.parametrize(
+    ("marker_str", "expected"), basic_markers, ids=[x[0] for x in basic_markers]
+)
 def test_basic_markers(marker_str: str, expected):
     result = parse(marker_str)
     assert result == expected
@@ -45,7 +46,9 @@ version_markers = [
 ]
 
 
-@pytest.mark.parametrize("marker_str,expected", version_markers, ids=[x[0] for x in version_markers])
+@pytest.mark.parametrize(
+    ("marker_str", "expected"), version_markers, ids=[x[0] for x in version_markers]
+)
 def test_version_markers(marker_str: str, expected):
     result = parse(marker_str)
     assert result == expected
@@ -72,7 +75,9 @@ boolean_markers = [
 ]
 
 
-@pytest.mark.parametrize("marker_str,expected", boolean_markers, ids=[x[0] for x in boolean_markers])
+@pytest.mark.parametrize(
+    ("marker_str", "expected"), boolean_markers, ids=[x[0] for x in boolean_markers]
+)
 def test_boolean_markers(marker_str: str, expected):
     result = parse(marker_str)
     assert result == expected
@@ -107,7 +112,9 @@ nested_and_markers = [
 ]
 
 
-@pytest.mark.parametrize("marker_str,expected", nested_and_markers, ids=[x[0] for x in nested_and_markers])
+@pytest.mark.parametrize(
+    ("marker_str", "expected"), nested_and_markers, ids=[x[0] for x in nested_and_markers]
+)
 def test_nested_and_markers(marker_str: str, expected):
     result = parse(marker_str)
     assert result == expected
@@ -116,7 +123,8 @@ def test_nested_and_markers(marker_str: str, expected):
 # Complex nested AND operation tests
 complex_and_markers = [
     (
-        "python_version >= '3.8' and (os_name == 'posix' and platform_machine == 'x86_64') and python_version < '4.0'",
+        "python_version >= '3.8' and (os_name == 'posix' and platform_machine == 'x86_64') "
+        "and python_version < '4.0'",
         OperatorNode(
             operator="and",
             _left=OperatorNode(
@@ -132,7 +140,8 @@ complex_and_markers = [
         ),
     ),
     (
-        "(python_version >= '3.8' and os_name == 'posix') and (platform_machine == 'x86_64' and python_version < '4.0')",
+        "(python_version >= '3.8' and os_name == 'posix') "
+        "and (platform_machine == 'x86_64' and python_version < '4.0')",
         OperatorNode(
             operator="and",
             _left=OperatorNode(
@@ -150,7 +159,9 @@ complex_and_markers = [
 ]
 
 
-@pytest.mark.parametrize("marker_str,expected", complex_and_markers, ids=[x[0] for x in complex_and_markers])
+@pytest.mark.parametrize(
+    ("marker_str", "expected"), complex_and_markers, ids=[x[0] for x in complex_and_markers]
+)
 def test_complex_and_markers(marker_str: str, expected):
     result = parse(marker_str)
     assert result == expected
@@ -236,7 +247,9 @@ mixed_op_markers = [
 ]
 
 
-@pytest.mark.parametrize("marker_str,expected", mixed_op_markers, ids=[x[0] for x in mixed_op_markers])
+@pytest.mark.parametrize(
+    ("marker_str", "expected"), mixed_op_markers, ids=[x[0] for x in mixed_op_markers]
+)
 def test_mixed_op_markers(marker_str: str, expected):
     result = parse(marker_str)
     assert result == expected
@@ -285,7 +298,8 @@ precedence_testdata = [
     ),
     (
         "and_higher_precedence_multiple",
-        "python_version >= '3.7' or os_name == 'posix' and implementation_name == 'cpython' or sys_platform == 'linux'",
+        "python_version >= '3.7' or os_name == 'posix' and implementation_name == 'cpython' "
+        "or sys_platform == 'linux'",
         OperatorNode(
             operator="or",
             _left=OperatorNode(
@@ -294,7 +308,9 @@ precedence_testdata = [
                 _right=OperatorNode(
                     operator="and",
                     _left=ExpressionNode(lhs="os_name", comparator="==", rhs="posix"),
-                    _right=ExpressionNode(lhs="implementation_name", comparator="==", rhs="cpython"),
+                    _right=ExpressionNode(
+                        lhs="implementation_name", comparator="==", rhs="cpython"
+                    ),
                 ),
             ),
             _right=ExpressionNode(lhs="sys_platform", comparator="==", rhs="linux"),
@@ -302,7 +318,8 @@ precedence_testdata = [
     ),
     (
         "mixed_precedence_complex",
-        "python_version >= '3.7' and os_name == 'posix' or implementation_name == 'cpython' and sys_platform == 'linux'",
+        "python_version >= '3.7' and os_name == 'posix' or implementation_name == 'cpython' "
+        "and sys_platform == 'linux'",
         OperatorNode(
             operator="or",
             _left=OperatorNode(
@@ -319,7 +336,8 @@ precedence_testdata = [
     ),
     (
         "explicit_precedence_matches_implicit",
-        "(python_version >= '3.7' and os_name == 'posix') or (implementation_name == 'cpython' and sys_platform == 'linux')",
+        "(python_version >= '3.7' and os_name == 'posix') "
+        "or (implementation_name == 'cpython' and sys_platform == 'linux')",
         OperatorNode(
             operator="or",
             _left=OperatorNode(
@@ -338,7 +356,7 @@ precedence_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,marker_str,expected",
+    ("name", "marker_str", "expected"),
     precedence_testdata,
     ids=[x[0] for x in precedence_testdata],
 )
@@ -358,14 +376,17 @@ real_world_markers = [
         "triple_equal_version",
         'python_version === "3.7"',
     ),
-    ('in_syntax', '"windows" in sys_platform'),
-    ('in_syntax_reversed', 'python_version in "2.7"'),
-    ('lhs_rhs_reversed', 'python_version < "2.7" or ("3.0" <= python_version and python_version < "3.2")'),
+    ("in_syntax", '"windows" in sys_platform'),
+    ("in_syntax_reversed", 'python_version in "2.7"'),
+    (
+        "lhs_rhs_reversed",
+        'python_version < "2.7" or ("3.0" <= python_version and python_version < "3.2")',
+    ),
 ]
 
 
 @pytest.mark.parametrize(
-    "name,marker_str",
+    ("name", "marker_str"),
     real_world_markers,
     ids=[x[0] for x in real_world_markers],
 )
@@ -437,7 +458,7 @@ reversed_comparator_testdata = [
 
 
 @pytest.mark.parametrize(
-    "name,marker_str,expected",
+    ("name", "marker_str", "expected"),
     reversed_comparator_testdata,
     ids=[x[0] for x in reversed_comparator_testdata],
 )
@@ -483,7 +504,7 @@ operand_order_markers = [
 
 
 @pytest.mark.parametrize(
-    "name,marker_str,expected",
+    ("name", "marker_str", "expected"),
     operand_order_markers,
     ids=[x[0] for x in operand_order_markers],
 )

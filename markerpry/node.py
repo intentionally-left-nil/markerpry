@@ -1,11 +1,10 @@
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, assert_never, override
 
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import Version
-from typing_extensions import assert_never, override
 
 Environment = dict[str, list[str | Version | re.Pattern[str] | bool]]
 Comparator = Literal["==", "===", "!=", ">", "<", ">=", "<=", "in", "not in", "~="]
@@ -101,7 +100,7 @@ class ExpressionNode(Node):
     @override
     def __str__(self) -> str:
         rhs_is_value = not self.inverted
-        if self.comparator in ('in', 'not in'):
+        if self.comparator in ("in", "not in"):
             rhs_is_value = not rhs_is_value
 
         lhs = str(self.lhs)
@@ -110,7 +109,7 @@ class ExpressionNode(Node):
             rhs = f'"{rhs}"'
         else:
             lhs = f'"{lhs}"'
-        return f'{lhs} {self.comparator} {rhs}'
+        return f"{lhs} {self.comparator} {rhs}"
 
     @override
     def __contains__(self, key: str) -> bool:
@@ -118,7 +117,7 @@ class ExpressionNode(Node):
 
     @override
     def evaluate(self, environment: Environment) -> "Node":
-        if not self._key() in environment:
+        if self._key() not in environment:
             return self
         values = environment[self._key()]
         result: bool | None = None
@@ -172,12 +171,12 @@ class ExpressionNode(Node):
         return specifier.contains(value)
 
     def _key(self) -> str:
-        if self.comparator in ('in', 'not in'):
+        if self.comparator in ("in", "not in"):
             return self.lhs if self.inverted else self.rhs
         return self.rhs if self.inverted else self.lhs
 
     def _value(self) -> str:
-        if self.comparator in ('in', 'not in'):
+        if self.comparator in ("in", "not in"):
             return self.rhs if self.inverted else self.lhs
         return self.lhs if self.inverted else self.rhs
 
