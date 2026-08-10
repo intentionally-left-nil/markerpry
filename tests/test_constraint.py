@@ -447,6 +447,74 @@ def test_range_constraint_key_on_left_is_irrelevant():
     assert constraint.evaluate("not in", "3.9", key_on_left=True) is None
 
 
+# RangeConstraint.intersect() tests
+intersect_testdata = [
+    (
+        "both_unbounded",
+        RangeConstraint(None, None),
+        RangeConstraint(None, None),
+        RangeConstraint(None, None),
+    ),
+    (
+        "one_side_unbounded",
+        RangeConstraint(Version("3.8"), None),
+        RangeConstraint(None, Version("3.11")),
+        RangeConstraint(Version("3.8"), Version("3.11")),
+    ),
+    (
+        "overlapping",
+        RangeConstraint(Version("3.7"), Version("3.11")),
+        RangeConstraint(Version("3.9"), Version("3.12")),
+        RangeConstraint(Version("3.9"), Version("3.11")),
+    ),
+    (
+        "disjoint",
+        RangeConstraint(Version("3.7"), Version("3.9")),
+        RangeConstraint(Version("3.10"), Version("3.12")),
+        None,
+    ),
+    (
+        "touching_at_a_point_inclusive_inclusive",
+        RangeConstraint(None, Version("3.10"), include_max=True),
+        RangeConstraint(Version("3.10"), None, include_min=True),
+        RangeConstraint(Version("3.10"), Version("3.10"), include_min=True, include_max=True),
+    ),
+    (
+        "touching_at_a_point_inclusive_exclusive",
+        RangeConstraint(None, Version("3.10"), include_max=True),
+        RangeConstraint(Version("3.10"), None, include_min=False),
+        None,
+    ),
+    (
+        "one_range_fully_containing_the_other",
+        RangeConstraint(Version("3.0"), Version("4.0")),
+        RangeConstraint(Version("3.5"), Version("3.6")),
+        RangeConstraint(Version("3.5"), Version("3.6")),
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "left", "right", "expected"),
+    intersect_testdata,
+    ids=[x[0] for x in intersect_testdata],
+)
+def test_range_constraint_intersect(
+    name: str,
+    left: RangeConstraint,
+    right: RangeConstraint,
+    expected: RangeConstraint | None,
+):
+    assert left.intersect(right) == expected
+
+
+def test_range_constraint_intersect_is_symmetric():
+    """Test that intersect() gives the same result regardless of argument order."""
+    left = RangeConstraint(Version("3.7"), Version("3.11"))
+    right = RangeConstraint(Version("3.9"), Version("3.12"))
+    assert left.intersect(right) == right.intersect(left)
+
+
 # coerce() tests
 _pattern = re.compile("linux.*")
 coerce_testdata = [

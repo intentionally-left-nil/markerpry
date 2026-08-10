@@ -177,6 +177,52 @@ class RangeConstraint:
         # and guessing wrong is worse than staying conditional.
         return None
 
+    def intersect(self, other: "RangeConstraint") -> "RangeConstraint | None":
+        """Intersect two version intervals, or None if the intersection is empty."""
+        min_, include_min = _tighter_min(self.min, self.include_min, other.min, other.include_min)
+        max_, include_max = _tighter_max(self.max, self.include_max, other.max, other.include_max)
+        if (
+            min_ is not None
+            and max_ is not None
+            and (min_ > max_ or (min_ == max_ and not (include_min and include_max)))
+        ):
+            return None
+        return RangeConstraint(min_, max_, include_min, include_max)
+
+
+def _tighter_min(
+    self_bound: Version | None,
+    self_include: bool,
+    other_bound: Version | None,
+    other_include: bool,
+) -> tuple[Version | None, bool]:
+    if self_bound is None:
+        return other_bound, other_include
+    if other_bound is None:
+        return self_bound, self_include
+    if self_bound > other_bound:
+        return self_bound, self_include
+    if other_bound > self_bound:
+        return other_bound, other_include
+    return self_bound, self_include and other_include
+
+
+def _tighter_max(
+    self_bound: Version | None,
+    self_include: bool,
+    other_bound: Version | None,
+    other_include: bool,
+) -> tuple[Version | None, bool]:
+    if self_bound is None:
+        return other_bound, other_include
+    if other_bound is None:
+        return self_bound, self_include
+    if self_bound < other_bound:
+        return self_bound, self_include
+    if other_bound < self_bound:
+        return other_bound, other_include
+    return self_bound, self_include and other_include
+
 
 ConstraintLike = Constraint | str | Version | re.Pattern[str] | bool
 
