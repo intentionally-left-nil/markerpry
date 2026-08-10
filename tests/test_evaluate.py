@@ -2,6 +2,7 @@ import re
 from typing import Literal
 
 import pytest
+from markerpry import evaluate
 from markerpry.constraint import (
     ExactConstraint,
     FlagConstraint,
@@ -9,7 +10,10 @@ from markerpry.constraint import (
     RangeConstraint,
     StringConstraint,
 )
+from markerpry.modifiers import evaluate as evaluate_module
 from markerpry.node import (
+    FALSE,
+    TRUE,
     BooleanNode,
     CompareNode,
     ContainsNode,
@@ -80,7 +84,7 @@ string_testdata = [
     ids=[x[0] for x in string_testdata],
 )
 def test_string_evaluate(name: str, expr: Node, env: Environment, expected: Node):
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result == expected
 
 
@@ -115,7 +119,7 @@ resolved_testdata = [
 def test_resolved_attribute_on_evaluate(
     name: str, expr: CompareNode, env: Environment, expected: bool
 ):
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result.resolved == expected
 
 
@@ -196,7 +200,7 @@ version_testdata = [
     ids=[x[0] for x in version_testdata],
 )
 def test_version_evaluate(name: str, expr: Node, env: Environment, expected: Node):
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result == expected
 
 
@@ -230,7 +234,7 @@ contains_node_value_testdata = [
 def test_contains_node_value_types_evaluate(
     name: str, expr: ContainsNode, env: Environment, expected: Node
 ):
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result == expected
 
 
@@ -257,7 +261,7 @@ multiple_value_testdata = [
     ids=[x[0] for x in multiple_value_testdata],
 )
 def test_multiple_values_evaluate(name: str, expr: CompareNode, env: Environment, expected: Node):
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result == expected
 
 
@@ -305,7 +309,7 @@ pre_coerced_environment_testdata = [
 def test_evaluate_with_pre_coerced_environment(
     name: str, expr: Node, env: Environment, expected: Node
 ):
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result == expected
 
 
@@ -338,7 +342,7 @@ missing_env_testdata = [
     ids=[x[0] for x in missing_env_testdata],
 )
 def test_missing_env_evaluate(name: str, expr: CompareNode, env: Environment, expected: Node):
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result == expected
 
 
@@ -407,7 +411,7 @@ regex_testdata = [
     ids=[x[0] for x in regex_testdata],
 )
 def test_regex_evaluate(name: str, expr: CompareNode, env: Environment, expected: Node):
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result == expected
 
 
@@ -473,8 +477,25 @@ boolean_literal_testdata = [
 )
 def test_boolean_literal_evaluate(name: str, expr: Node, env: Environment, expected: Node):
     """Test evaluation of boolean literals in various contexts."""
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result == expected
+
+
+# BooleanNode identity tests: a BooleanNode is already fully resolved, so
+# evaluate() always hands it back unchanged, regardless of the environment.
+boolean_node_identity_testdata = [
+    ("true", TRUE, {}),
+    ("false", FALSE, {"os_name": ["posix"]}),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "node", "env"),
+    boolean_node_identity_testdata,
+    ids=[x[0] for x in boolean_node_identity_testdata],
+)
+def test_boolean_node_evaluate_is_identity(name: str, node: BooleanNode, env: Environment):
+    assert evaluate(node, env) is node
 
 
 operator_testdata = [
@@ -568,7 +589,7 @@ operator_testdata = [
     ids=[x[0] for x in operator_testdata],
 )
 def test_operator_evaluate(name: str, expr: OperatorNode, env: Environment, expected: Node):
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result == expected
 
 
@@ -596,7 +617,7 @@ def test_complex_partial_evaluation():
     # - Overall result is True because one side of OR is True
     expected = BooleanNode(True)
 
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result == expected
 
 
@@ -631,7 +652,7 @@ or_shortcircuit_testdata = [
     ids=[x[0] for x in or_shortcircuit_testdata],
 )
 def test_or_shortcircuit_evaluate(name: str, expr: OperatorNode, env: Environment, expected: Node):
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result == expected
 
 
@@ -699,7 +720,7 @@ partial_eval_testdata = [
     ids=[x[0] for x in partial_eval_testdata],
 )
 def test_partial_evaluation(name: str, expr: OperatorNode, env: Environment, expected: Node):
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result == expected
 
 
@@ -744,7 +765,7 @@ full_eval_testdata = [
     ids=[x[0] for x in full_eval_testdata],
 )
 def test_full_evaluation(name: str, expr: OperatorNode, env: Environment, expected: Node):
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result == expected
 
 
@@ -1033,7 +1054,7 @@ def test_packaging_comparison(name: str, marker_str: str, env: Environment, expe
     """Test that our evaluation matches packaging.Marker's evaluation."""
     # Parse and evaluate with our implementation
     our_node = parse(marker_str)
-    our_result = our_node.evaluate(env)
+    our_result = evaluate(our_node, env)
     assert isinstance(our_result, BooleanNode)
     assert our_result.state == expected
 
@@ -1121,5 +1142,42 @@ requires_python_scenario_testdata = [
     ids=[x[0] for x in requires_python_scenario_testdata],
 )
 def test_requires_python_scenario_evaluate(name: str, expr: Node, env: Environment, expected: Node):
-    result = expr.evaluate(env)
+    result = evaluate(expr, env)
     assert result == expected
+
+
+def test_evaluate_top_level_export_is_the_modifiers_function():
+    """Test that markerpry.evaluate is the same function object as modifiers.evaluate.evaluate."""
+    assert evaluate is evaluate_module.evaluate
+
+
+def test_evaluate_identity_when_nothing_resolves():
+    """Test that evaluate() returns the exact same tree object when nothing resolves."""
+    tree = OperatorNode(
+        "and",
+        OperatorNode(
+            "and",
+            CompareNode("key1", "==", "value1"),
+            CompareNode("key2", "==", "value2"),
+        ),
+        CompareNode("key3", "==", "value3"),
+    )
+
+    assert evaluate(tree, {}) is tree
+
+
+def test_evaluate_identity_partial_case():
+    """Test that untouched clauses reappear by identity when only one clause resolves."""
+    unresolved_left = CompareNode("missing_key", "==", "value")
+    unresolved_right = ContainsNode("other_missing_key", "value", key_on_left=False)
+    tree = OperatorNode(
+        "and",
+        OperatorNode("and", unresolved_left, CompareNode("os_name", "==", "posix")),
+        unresolved_right,
+    )
+
+    result = evaluate(tree, {"os_name": ["posix"]})
+
+    assert isinstance(result, OperatorNode)
+    assert result.left is unresolved_left
+    assert result.right is unresolved_right
