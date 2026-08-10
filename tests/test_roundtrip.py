@@ -2,6 +2,7 @@ import itertools
 import re
 
 import pytest
+from markerpry import evaluate
 from markerpry.node import BooleanNode
 from markerpry.parser import parse
 from packaging.markers import Marker
@@ -243,7 +244,7 @@ def test_simplify():
         '(implementation_name == "cpython" and python_version >= "3.8") or os_name == "posix"'
     )
     node = parse(marker_str)
-    simplified = node.evaluate({"implementation_name": ["pypy"]})
+    simplified = evaluate(node, {"implementation_name": ["pypy"]})
     assert str(Marker(str(simplified))).replace('"', "'") == 'os_name == "posix"'.replace('"', "'")
 
 

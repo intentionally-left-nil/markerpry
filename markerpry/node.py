@@ -1,20 +1,24 @@
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal, assert_never, override
 
-from .constraint import Comparator, ComparisonOperator, ConstraintLike, FlagConstraint, coerce
+from .constraint import ComparisonOperator, ConstraintLike
 
 Environment = Mapping[str, Sequence[ConstraintLike]]
+
+LeafModifier = Callable[["Node"], "Node"]
+ChainModifier = Callable[[Literal["and", "or"], Sequence["Node"]], Sequence["Node"]]
 
 
 class Node(ABC):
     """Base class for all nodes in the marker expression tree."""
 
-    @abstractmethod
-    def evaluate(self, environment: Environment) -> "Node":
-        """Partially or fully evaluates the node based on the environment"""
-        pass
+    def modify(
+        self, *, leaf: LeafModifier | None = None, chain: ChainModifier | None = None
+    ) -> "Node":
+        """Rewrite the tree bottom-up via leaf/chain callbacks."""
+        return leaf(self) if leaf is not None else self
 
     @override
     @abstractmethod
@@ -58,10 +62,6 @@ class BooleanNode(Node):
         return str(self.state)
 
     @override
-    def evaluate(self, environment: Environment) -> "Node":
-        return self  # No need to create new BooleanNode since they're immutable
-
-    @override
     def __contains__(self, key: str) -> bool:
         return False  # BooleanNode never contains any keys
 
@@ -86,23 +86,6 @@ TRUE = BooleanNode(True)
 FALSE = BooleanNode(False)
 
 
-def _evaluate_constraints(
-    values: Sequence[ConstraintLike],
-    comparator: Comparator,
-    literal: str,
-    *,
-    key_on_left: bool = False,
-) -> bool | None:
-    result: bool | None = None
-    for value in values:
-        constraint = coerce(value)
-        if isinstance(constraint, FlagConstraint):
-            return constraint.state
-        evaluated = constraint.evaluate(comparator, literal, key_on_left=key_on_left)
-        result = result if evaluated is None else result or evaluated
-    return result
-
-
 @dataclass(frozen=True)
 class CompareNode(Node):
     """A node representing a comparison expression (e.g., python_version > '3.7')."""
@@ -118,13 +101,6 @@ class CompareNode(Node):
     @override
     def __contains__(self, key: str) -> bool:
         return self.key == key
-
-    @override
-    def evaluate(self, environment: Environment) -> "Node":
-        if self.key not in environment:
-            return self
-        result = _evaluate_constraints(environment[self.key], self.comparator, self.literal)
-        return self if result is None else BooleanNode(result)
 
 
 @dataclass(frozen=True)
@@ -146,16 +122,6 @@ class ContainsNode(Node):
     @override
     def __contains__(self, key: str) -> bool:
         return self.key == key
-
-    @override
-    def evaluate(self, environment: Environment) -> "Node":
-        if self.key not in environment:
-            return self
-        comparator: Comparator = "not in" if self.negate else "in"
-        result = _evaluate_constraints(
-            environment[self.key], comparator, self.literal, key_on_left=self.key_on_left
-        )
-        return self if result is None else BooleanNode(result)
 
 
 @dataclass(frozen=True)
@@ -188,15 +154,27 @@ class OperatorNode(Node):
         return str(node)
 
     @override
-    def evaluate(self, environment: Environment) -> "Node":
-        left = self._left.evaluate(environment)
-        right = self._right.evaluate(environment)
+    def modify(
+        self, *, leaf: LeafModifier | None = None, chain: ChainModifier | None = None
+    ) -> "Node":
+        pieces = _flatten_chain(self, self.operator)
+        modified = [piece.modify(leaf=leaf, chain=chain) for piece in pieces]
+        result_pieces = chain(self.operator, modified) if chain is not None else modified
 
-        # If neither child changed, return self
-        if left is self._left and right is self._right:
+        # Nodes are frozen dataclasses, so identity, not equality, is the
+        # right and cheap "did anything change" test for the whole chain.
+        if len(result_pieces) == len(pieces) and all(
+            r is p for r, p in zip(result_pieces, pieces, strict=True)
+        ):
             return self
 
-        return OperatorNode.combine(self.operator, left, right)
+        if not result_pieces:
+            return TRUE if self.operator == "and" else FALSE
+
+        result: Node = result_pieces[0]
+        for piece in result_pieces[1:]:
+            result = OperatorNode.combine(self.operator, result, piece)
+        return result
 
     @classmethod
     def combine(cls, operator: Literal["and", "or"], left: Node, right: Node) -> Node:
@@ -220,3 +198,10 @@ class OperatorNode(Node):
     def __contains__(self, key: str) -> bool:
         # OperatorNode contains keys from both children
         return key in self._left or key in self._right
+
+
+def _flatten_chain(node: Node, operator: Literal["and", "or"]) -> list[Node]:
+    # A differently-operated subtree is one opaque chain member, never descended into.
+    if isinstance(node, OperatorNode) and node.operator == operator:
+        return _flatten_chain(node._left, operator) + _flatten_chain(node._right, operator)
+    return [node]

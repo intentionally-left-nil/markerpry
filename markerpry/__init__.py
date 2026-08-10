@@ -14,13 +14,16 @@ from .constraint import (
     StringConstraint,
     coerce,
 )
+from .modifiers.evaluate import evaluate
 from .node import (
     FALSE,
     TRUE,
     BooleanNode,
+    ChainModifier,
     CompareNode,
     ContainsNode,
     Environment,
+    LeafModifier,
     Node,
     OperatorNode,
 )
@@ -34,6 +37,9 @@ __all__ = [
     "OperatorNode",
     "parse",
     "parse_marker",
+    "evaluate",
+    "LeafModifier",
+    "ChainModifier",
     "Environment",
     "Comparator",
     "ComparisonOperator",

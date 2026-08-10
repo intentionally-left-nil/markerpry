@@ -1,4 +1,5 @@
 import pytest
+from markerpry import evaluate
 from markerpry.node import BooleanNode, CompareNode, ContainsNode, Environment
 from markerpry.parser import REVERSE_MAP, parse
 from packaging.markers import Marker
@@ -55,8 +56,8 @@ def test_reverse_map_equivalence_compare_node(
     assert isinstance(reversed_node, CompareNode)
 
     markerpry_env: Environment = {"python_version": [Version(env["python_version"])]}
-    result = node.evaluate(markerpry_env)
-    reversed_result = reversed_node.evaluate(markerpry_env)
+    result = evaluate(node, markerpry_env)
+    reversed_result = evaluate(reversed_node, markerpry_env)
 
     assert result == reversed_result, (
         f"CompareNodes not equivalent for env={env}:\n"
@@ -87,7 +88,7 @@ def test_contains_node_key_on_left_matches_packaging(marker_str: str, env: dict[
     assert isinstance(node, ContainsNode)
 
     markerpry_env: Environment = {"python_version": [Version(env["python_version"])]}
-    result = node.evaluate(markerpry_env)
+    result = evaluate(node, markerpry_env)
     assert isinstance(result, BooleanNode)
 
     packaging_result = Marker(marker_str).evaluate(env)

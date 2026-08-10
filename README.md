@@ -14,6 +14,7 @@
   - [String Representation](#string-representation)
   - [Evaluation](#evaluation)
     - [Range Constraints](#range-constraints)
+  - [Modifying Trees](#modifying-trees)
 - [License](#license)
 
 ## Installation
@@ -93,9 +94,10 @@ marker = Marker(str(tree))
 
 ### Evaluation
 
-The `evaluate()` method partially evaluates the tree based on the provided environment:
+The `evaluate()` function partially evaluates a tree based on the provided environment:
 
 ```python
+from markerpry import evaluate
 from packaging.version import Version
 import re
 
@@ -108,7 +110,7 @@ env = {
 }
 
 # Evaluate the tree
-result = tree.evaluate(env)
+result = evaluate(tree, env)
 
 # The result will be a simplified tree or a BooleanNode
 # In this case, it would evaluate to BooleanNode(True)
@@ -189,20 +191,41 @@ If any parts of the expression can't be evaluated (due to missing environment va
 `RangeConstraint` represents an open or closed interval of versions, and only resolves an expression when the *entire* interval agrees on the answer — unlike a list of `Version` values, which is evaluated existentially and can spuriously resolve interval questions:
 
 ```python
-from markerpry import RangeConstraint, parse
+from markerpry import RangeConstraint, evaluate, parse
 from packaging.version import Version
 
 # An abi3 wheel's floor: python_version >= 3.9, no ceiling
 tree = parse('python_version < "3.11"')
 
 env = {"python_version": [RangeConstraint(min=Version("3.9"), max=None)]}
-result = tree.evaluate(env)
+result = evaluate(tree, env)
 # result is the SAME unresolved node: "< 3.11" holds for some but not all
 # versions >= 3.9, so it stays conditional.
 
 env = {"python_version": [RangeConstraint(min=Version("3.12"), max=None)]}
-result = tree.evaluate(env)
+result = evaluate(tree, env)
 # result is BooleanNode(False): every version >= 3.12 fails "< 3.11".
+```
+
+### Modifying Trees
+
+`modify()` is the general-purpose tree-rewrite primitive `evaluate()` is itself built on. It walks the tree bottom-up and hands every non-operator node to a `leaf` callback you provide, returning the (possibly different) node it gives back:
+
+```python
+from markerpry import BooleanNode, CompareNode, parse
+
+tree = parse('extra == "docs" or python_version >= "3.8"')
+
+
+def drop_extras(node):
+    if isinstance(node, CompareNode) and node.key == "extra":
+        return BooleanNode(False)
+    return node
+
+
+result = tree.modify(leaf=drop_extras)
+# result is CompareNode(key="python_version", comparator=">=", literal="3.8")
+# - the "extra" branch folded to False, and the OR drops it automatically
 ```
 
 ## License
