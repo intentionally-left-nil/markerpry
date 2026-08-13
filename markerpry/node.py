@@ -86,6 +86,28 @@ TRUE = BooleanNode(True)
 FALSE = BooleanNode(False)
 
 
+def _quote_literal(literal: str) -> str:
+    # packaging finds a quoted string's closing quote by scanning for the
+    # next occurrence of the same quote character, ignoring a preceding
+    # backslash - so the delimiter must be whichever quote character the
+    # literal lacks.
+    if '"' not in literal:
+        quote = '"'
+    elif "'" not in literal:
+        quote = "'"
+    else:
+        raise ValueError(
+            f"Cannot render literal {literal!r} as a PEP 508 marker string: it contains "
+            "both `\"` and `'`, and PEP 508 markers have no way to escape a quote "
+            "character inside a quoted string."
+        )
+    # ast.literal_eval reads the quoted token as Python string-literal
+    # syntax on the way back in, so backslashes/control chars need
+    # repr-style escaping.
+    escaped = literal.encode("unicode_escape").decode("ascii")
+    return f"{quote}{escaped}{quote}"
+
+
 @dataclass(frozen=True)
 class CompareNode(Node):
     """A node representing a comparison expression (e.g., python_version > '3.7')."""
@@ -96,7 +118,7 @@ class CompareNode(Node):
 
     @override
     def __str__(self) -> str:
-        return f'{self.key} {self.comparator} "{self.literal}"'
+        return f"{self.key} {self.comparator} {_quote_literal(self.literal)}"
 
     @override
     def __contains__(self, key: str) -> bool:
@@ -116,8 +138,8 @@ class ContainsNode(Node):
     def __str__(self) -> str:
         comparator = "not in" if self.negate else "in"
         if self.key_on_left:
-            return f'{self.key} {comparator} "{self.literal}"'
-        return f'"{self.literal}" {comparator} {self.key}'
+            return f"{self.key} {comparator} {_quote_literal(self.literal)}"
+        return f"{_quote_literal(self.literal)} {comparator} {self.key}"
 
     @override
     def __contains__(self, key: str) -> bool:
