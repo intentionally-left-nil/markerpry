@@ -1,9 +1,10 @@
 import itertools
 import re
+from collections.abc import Callable
 
 import pytest
 from markerpry import evaluate
-from markerpry.node import BooleanNode
+from markerpry.node import BooleanNode, CompareNode, ContainsNode, Node
 from markerpry.parser import parse
 from packaging.markers import Marker
 
@@ -285,3 +286,73 @@ def test_in_operator_roundtrip(name: str, marker_str: str, expected_key: str):
     assert str(node) == marker_str
     # Test dependency key is preserved
     assert expected_key in node
+
+
+# Literal quoting tests: characters that are awkward to embed in a quoted
+# PEP 508 string (quotes, backslashes, control characters, non-ASCII)
+tricky_literal_testdata = [
+    ("double_quote", 'foo"bar'),
+    ("single_quote", "foo'bar"),
+    ("backslash", "foo\\bar"),
+    ("newline", "foo\nbar"),
+    ("tab", "foo\tbar"),
+    ("carriage_return", "foo\rbar"),
+    ("null_byte", "foo\x00bar"),
+    ("non_ascii", "héllo"),
+    ("astral_emoji", "emoji😀test"),
+    ("empty_string", ""),
+    ("backslash_before_quote", 'foo\\"bar'),
+]
+
+literal_node_shapes: list[tuple[str, Callable[[str], Node]]] = [
+    ("compare", lambda literal: CompareNode(key="extra", comparator="==", literal=literal)),
+    (
+        "contains_key_on_left",
+        lambda literal: ContainsNode(key="extra", literal=literal, key_on_left=True),
+    ),
+    (
+        "contains_key_on_right",
+        lambda literal: ContainsNode(key="extra", literal=literal, key_on_left=False),
+    ),
+    (
+        "contains_key_on_right_negated",
+        lambda literal: ContainsNode(key="extra", literal=literal, key_on_left=False, negate=True),
+    ),
+]
+
+tricky_literal_roundtrip_testdata = [
+    (f"{shape_name}-{literal_name}", make_node, literal)
+    for (shape_name, make_node), (literal_name, literal) in itertools.product(
+        literal_node_shapes, tricky_literal_testdata
+    )
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "make_node", "literal"),
+    tricky_literal_roundtrip_testdata,
+    ids=[x[0] for x in tricky_literal_roundtrip_testdata],
+)
+def test_tricky_literal_round_trips(name: str, make_node: Callable[[str], Node], literal: str):
+    node = make_node(literal)
+
+    rendered = str(node)
+
+    # Must produce something packaging.Marker itself accepts, not just
+    # something markerpry's own parser is lenient about.
+    Marker(rendered)
+    assert parse(rendered) == node
+
+
+@pytest.mark.parametrize(
+    ("name", "make_node"),
+    literal_node_shapes,
+    ids=[x[0] for x in literal_node_shapes],
+)
+def test_literal_containing_both_quote_characters_raises(
+    name: str, make_node: Callable[[str], Node]
+):
+    node = make_node("foo\"bar'baz")
+
+    with pytest.raises(ValueError, match="both"):
+        str(node)
